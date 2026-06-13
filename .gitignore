@@ -1,0 +1,29 @@
+# Node
+node_modules/
+package-lock.json
+
+# Next/Vite/TS
+.next/
+.vitest/
+coverage/
+dist/
+build/
+*.tsbuildinfo
+
+# Python virtualenv
+.venv/
+.venv-convert/
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large data/backups
+public/backup/
+public/cpi_source/*.xls
+public/cpi_source/*.xlsx
+.eslintcache
