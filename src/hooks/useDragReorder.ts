@@ -1,0 +1,180 @@
+"use client";
+
+import { useRef, useState, useCallback, useEffect } from "react";
+
+interface DragState {
+  fromIndex: number;
+  overIndex: number;
+  startY: number;
+  currentY: number;
+  itemHeight: number;
+  /**
+   * Whether the drag has moved past the threshold.
+   * Until this is true, pointermove doesn't prevent scroll.
+   */
+  active: boolean;
+}
+
+const DRAG_THRESHOLD = 8; // px of movement before drag activates
+
+/**
+ * Custom hook for drag-and-drop reordering.
+ * Uses pointer events for unified mouse/touch support.
+ * Returns styles to apply to each item for visual feedback.
+ */
+export function useDragReorder(
+  onReorder: (fromIndex: number, toIndex: number) => void
+) {
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const onReorderRef = useRef(onReorder);
+  onReorderRef.current = onReorder;
+
+  const getIndexFromY = useCallback((clientY: number): number => {
+    const container = containerRef.current;
+    if (!container) return 0;
+    const children = Array.from(container.children) as HTMLElement[];
+    for (let i = 0; i < children.length; i++) {
+      const rect = children[i].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) return i;
+    }
+    return children.length - 1;
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (index: number, e: React.PointerEvent) => {
+      if (e.button !== 0) return;
+
+      const item = containerRef.current?.children[index] as
+        | HTMLElement
+        | undefined;
+      if (!item) return;
+
+      const rect = item.getBoundingClientRect();
+      const state: DragState = {
+        fromIndex: index,
+        overIndex: index,
+        startY: e.clientY,
+        currentY: e.clientY,
+        itemHeight: rect.height,
+        active: false,
+      };
+      dragRef.current = state;
+      setDragState(state);
+    },
+    []
+  );
+
+  // Always-attached listeners; check dragRef.current to determine if active
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      const state = dragRef.current;
+      if (!state) return;
+
+      const dy = Math.abs(e.clientY - state.startY);
+
+      if (!state.active) {
+        if (dy < DRAG_THRESHOLD) return;
+        // Crossed threshold — activate drag
+        const overIndex = getIndexFromY(e.clientY);
+        dragRef.current = { ...state, active: true, currentY: e.clientY, overIndex };
+        setDragState(dragRef.current!);
+        return;
+      }
+
+      e.preventDefault();
+
+      const overIndex = getIndexFromY(e.clientY);
+      if (overIndex !== state.overIndex || e.clientY !== state.currentY) {
+        const next = { ...state, currentY: e.clientY, overIndex };
+        dragRef.current = next;
+        setDragState(next);
+      }
+    };
+
+    const handleEnd = () => {
+      const state = dragRef.current;
+      if (!state) return;
+      if (state.active && state.fromIndex !== state.overIndex) {
+        onReorderRef.current(state.fromIndex, state.overIndex);
+      }
+      dragRef.current = null;
+      setDragState(null);
+    };
+
+    /** Cancel drag without committing a reorder */
+    const handleCancel = () => {
+      const state = dragRef.current;
+      if (!state) return;
+      // Reset overIndex to prevent reorder
+      dragRef.current = { ...state, overIndex: state.fromIndex };
+      setDragState(dragRef.current!);
+      handleEnd();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && dragRef.current) {
+        handleCancel();
+      }
+    };
+
+    document.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", handleEnd);
+    document.addEventListener("pointercancel", handleCancel);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handleEnd);
+      document.removeEventListener("pointercancel", handleEnd);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [getIndexFromY]);
+
+  /** Returns CSSProperties for an item at the given index during a drag */
+  const getItemStyle = useCallback(
+    (index: number): React.CSSProperties => {
+      const state = dragRef.current;
+      if (!state || !state.active) return {};
+
+      const { fromIndex, overIndex, startY, currentY, itemHeight } = state;
+
+      if (index === fromIndex) {
+        return {
+          opacity: 0.3,
+          transform: `translateY(${currentY - startY}px)`,
+          transition: "opacity 0.15s ease",
+          position: "relative",
+          zIndex: 10,
+        };
+      }
+
+      let shiftY = 0;
+      if (fromIndex < overIndex && index > fromIndex && index <= overIndex) {
+        shiftY = -itemHeight;
+      } else if (
+        fromIndex > overIndex &&
+        index >= overIndex &&
+        index < fromIndex
+      ) {
+        shiftY = itemHeight;
+      }
+
+      const base: React.CSSProperties = {};
+      if (shiftY !== 0) {
+        base.transform = `translateY(${shiftY}px)`;
+        base.transition = "transform 0.2s ease";
+      }
+      return base;
+    },
+    []
+  );
+
+  return {
+    dragState,
+    containerRef,
+    handlePointerDown,
+    getItemStyle,
+    isDragging: dragState !== null,
+  };
+}

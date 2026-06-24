@@ -1,0 +1,35 @@
+#!/bin/sh
+
+echo "Running pre-commit checks..."
+
+# 1. npxの使用チェック
+if grep -q "npx" package.json; then
+  echo "Error: npx usage detected in package.json. Please use pnpm dlx or install as devDependency."
+  exit 1
+fi
+
+# 2. 未ステージの変更チェック
+if [ -n "$(git diff --name-only)" ]; then
+  echo "Error: Unstaged changes detected."
+  exit 1
+fi
+
+# 3. 静的解析
+pnpm run lint:fast || { echo "Lint failed"; exit 1; }
+
+# 4. コードフォーマット・型チェック
+pnpm oxfmt --write . "!tests/**" || { echo "Format failed"; exit 1; }
+pnpm run type-check:fast || { echo "Type check failed"; exit 1; }
+
+# 5. ロジックテストの実行
+echo "Running logic tests..."
+pnpm vitest run
+TEST_EXIT_CODE=$?
+
+if [ $TEST_EXIT_CODE -ne 0 ]; then
+  echo "Tests failed with code $TEST_EXIT_CODE"
+  exit $TEST_EXIT_CODE
+fi
+
+echo "Pre-commit checks passed!"
+exit 0

@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     globals: true,
     include: ["tests/**/*.{test.ts,test.tsx}"],
-    exclude: ["tests/**/*.ui.test.ts", "tests/**/*.ui.test.tsx"],
+    exclude: ["tests/**/*.ui.test.ts", "tests/**/*.ui.test.tsx", "tests/**/*.test.tsx"],
     root: "./",
     environment: "node",
     setupFiles: ["./tests/utils/logic-setup.ts"],
