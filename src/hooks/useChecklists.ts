@@ -32,8 +32,10 @@ export function useChecklists() {
   }, [checklists, loaded]);
 
   // --- List operations ---
-  const addChecklist = useCallback((name: string) => {
-    setChecklists((prev) => [...prev, createChecklist(name)]);
+  const addChecklist = useCallback((name: string): string => {
+    const newList = createChecklist(name);
+    setChecklists((prev) => [...prev, newList]);
+    return newList.id;
   }, []);
 
   const renameChecklist = useCallback((id: string, name: string) => {

@@ -45,7 +45,10 @@ export default function Home() {
           checklists={checklists}
           activeView={activeView}
           onSelect={(id) => setActiveView({ type: "list", checklistId: id })}
-          onAdd={addChecklist}
+          onAdd={(name) => {
+            const newId = addChecklist(name);
+            setActiveView({ type: "list", checklistId: newId });
+          }}
           onRename={renameChecklist}
           onDelete={(id) => {
             deleteChecklist(id);
