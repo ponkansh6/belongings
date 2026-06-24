@@ -152,4 +152,14 @@ describe("ChecklistItems", () => {
     const phoneLabel = screen.getByText("Phone");
     expect(phoneLabel.className).toContain("line-through");
   });
+
+  it('shows the swipe-to-delete "削除" label for each item', () => {
+    renderItems();
+    const deleteLabels = screen.getAllByText("削除");
+    expect(deleteLabels).toHaveLength(3); // one per item
+    deleteLabels.forEach((label) => {
+      expect(label).toBeInTheDocument();
+      expect(label.tagName).toBe("SPAN");
+    });
+  });
 });

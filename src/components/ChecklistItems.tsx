@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { Checklist } from "@/lib/types";
 import { useDragReorder } from "@/hooks/useDragReorder";
 
@@ -106,98 +107,136 @@ export default function ChecklistItems({
         <>
           {/* Items list */}
           <div ref={containerRef} className="-mx-1 flex flex-col gap-0.5">
-            {checklist.items.map((item, index) => {
-              const itemStyle = getItemStyle(index);
+            <AnimatePresence initial={false}>
+              {checklist.items.map((item, index) => {
+                const itemStyle = getItemStyle(index);
 
-              return (
-                <div
-                  key={item.id}
-                  style={itemStyle}
-                  aria-grabbed={isDragging}
-                  className={`group flex items-center gap-1.5 rounded-xl px-1 transition-colors ${
-                    item.checked ? "bg-stone-50/80" : "bg-white hover:bg-stone-50"
-                  }`}
-                >
-                  {/* Drag handle */}
-                  <button
-                    type="button"
-                    onPointerDown={(e) => handlePointerDown(index, e)}
-                    className="flex h-11 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-stone-300 transition-colors hover:text-stone-500 active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                    aria-label="並び替え"
-                    tabIndex={0}
+                return (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 1, x: 0 }}
+                    exit={{
+                      opacity: 0,
+                      x: -120,
+                      height: 0,
+                      marginBottom: 0,
+                      overflow: "hidden",
+                      transition: { duration: 0.25, ease: "easeInOut" },
+                    }}
+                    style={itemStyle}
+                    className="relative overflow-hidden rounded-xl"
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 14 14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    >
-                      <line x1="4" y1="3.5" x2="10" y2="3.5" />
-                      <line x1="4" y1="7" x2="10" y2="7" />
-                      <line x1="4" y1="10.5" x2="10" y2="10.5" />
-                    </svg>
-                  </button>
+                    {/* Red delete background revealed when swiping left */}
+                    <div className="absolute inset-y-0 right-0 flex w-full items-center justify-end rounded-xl bg-red-500 pr-5">
+                      <span className="text-sm font-medium text-white">削除</span>
+                    </div>
 
-                  {/* Custom checkbox */}
-                  <label className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-stone-300 transition-colors has-checked:border-blue-500 has-checked:bg-blue-500">
-                    <input
-                      type="checkbox"
-                      checked={item.checked}
-                      onChange={() => onToggle(item.id)}
-                      className="peer sr-only"
-                    />
-                    {item.checked && (
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="pointer-events-none"
+                    {/* Swipable card */}
+                    <motion.div
+                      drag="x"
+                      dragDirectionLock
+                      dragConstraints={{ left: -200, right: 0 }}
+                      dragElastic={{ left: 0.3, right: 0 }}
+                      onDragEnd={(_event, info) => {
+                        if (info.offset.x < -100) {
+                          onDeleteItem(item.id);
+                        }
+                      }}
+                      className={`relative flex items-center gap-1.5 rounded-xl px-1 transition-colors ${
+                        item.checked
+                          ? "bg-stone-50/80"
+                          : "bg-white hover:bg-stone-50"
+                      }`}
+                      aria-grabbed={isDragging}
+                    >
+                      {/* Drag handle */}
+                      <button
+                        type="button"
+                        onPointerDown={(e) => {
+                          e.nativeEvent.stopPropagation();
+                          handlePointerDown(index, e);
+                        }}
+                        className="flex h-11 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-stone-300 transition-colors hover:text-stone-500 active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                        aria-label="並び替え"
+                        tabIndex={0}
                       >
-                        <polyline points="2.5 6 5 8.5 9.5 3.5" />
-                      </svg>
-                    )}
-                  </label>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 14 14"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                        >
+                          <line x1="4" y1="3.5" x2="10" y2="3.5" />
+                          <line x1="4" y1="7" x2="10" y2="7" />
+                          <line x1="4" y1="10.5" x2="10" y2="10.5" />
+                        </svg>
+                      </button>
 
-                  {/* Label */}
-                  <span
-                    className={`min-w-0 flex-1 truncate py-2.5 pr-1 text-sm transition-colors ${
-                      item.checked ? "text-stone-400 line-through" : "text-stone-700"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
+                      {/* Custom checkbox */}
+                      <label className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-stone-300 transition-colors has-checked:border-blue-500 has-checked:bg-blue-500">
+                        <input
+                          type="checkbox"
+                          checked={item.checked}
+                          onChange={() => onToggle(item.id)}
+                          className="peer sr-only"
+                        />
+                        {item.checked && (
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                            stroke="white"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="pointer-events-none"
+                          >
+                            <polyline points="2.5 6 5 8.5 9.5 3.5" />
+                          </svg>
+                        )}
+                      </label>
 
-                  {/* Delete button */}
-                  <button
-                    type="button"
-                    onClick={() => onDeleteItem(item.id)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-stone-300 opacity-0 transition-all hover:bg-red-100 hover:text-red-500 focus-visible:opacity-100 group-hover:opacity-100"
-                    aria-label={`「${item.label}」を削除`}
-                  >
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    >
-                      <line x1="2" y1="2" x2="10" y2="10" />
-                      <line x1="10" y1="2" x2="2" y2="10" />
-                    </svg>
-                  </button>
-                </div>
-              );
-            })}
+                      {/* Label */}
+                      <span
+                        className={`min-w-0 flex-1 truncate py-2.5 pr-1 text-sm transition-colors ${
+                          item.checked
+                            ? "text-stone-400 line-through"
+                            : "text-stone-700"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+
+                      {/* Delete button — desktop/keyboard fallback */}
+                      <button
+                        type="button"
+                        onClick={() => onDeleteItem(item.id)}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-stone-300 opacity-0 transition-all hover:bg-red-100 hover:text-red-500 focus-visible:opacity-100 group-hover:opacity-100"
+                        aria-label={`「${item.label}」を削除`}
+                      >
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 12 12"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                        >
+                          <line x1="2" y1="2" x2="10" y2="10" />
+                          <line x1="10" y1="2" x2="2" y2="10" />
+                        </svg>
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
 
           {/* Progress bar */}
