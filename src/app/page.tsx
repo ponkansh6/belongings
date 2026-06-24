@@ -49,10 +49,7 @@ export default function Home() {
           onRename={renameChecklist}
           onDelete={(id) => {
             deleteChecklist(id);
-            if (
-              activeView.type === "list" &&
-              activeView.checklistId === id
-            ) {
+            if (activeView.type === "list" && activeView.checklistId === id) {
               setActiveView({ type: "all" });
             }
           }}
@@ -67,12 +64,8 @@ export default function Home() {
                 checklist={selectedChecklist}
                 onToggle={(itemId) => toggleItem(selectedChecklist.id, itemId)}
                 onAddItem={(label) => addItem(selectedChecklist.id, label)}
-                onDeleteItem={(itemId) =>
-                  deleteItem(selectedChecklist.id, itemId)
-                }
-                onReorderItems={(from, to) =>
-                  reorderItems(selectedChecklist.id, from, to)
-                }
+                onDeleteItem={(itemId) => deleteItem(selectedChecklist.id, itemId)}
+                onReorderItems={(from, to) => reorderItems(selectedChecklist.id, from, to)}
                 onReset={() => resetList(selectedChecklist.id)}
               />
             </div>
@@ -108,9 +101,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="mt-8 text-center text-[11px] text-stone-400">
-        Belongings Checker
-      </footer>
+      <footer className="mt-8 text-center text-[11px] text-stone-400">Belongings Checker</footer>
     </div>
   );
 }

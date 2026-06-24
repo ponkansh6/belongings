@@ -2,12 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Checklist } from "@/lib/types";
-import {
-  loadChecklists,
-  saveChecklists,
-  createChecklist,
-  createItem,
-} from "@/lib/storage";
+import { loadChecklists, saveChecklists, createChecklist, createItem } from "@/lib/storage";
 
 export type ActiveView = { type: "list"; checklistId: string } | { type: "all" };
 
@@ -42,9 +37,7 @@ export function useChecklists() {
   }, []);
 
   const renameChecklist = useCallback((id: string, name: string) => {
-    setChecklists((prev) =>
-      prev.map((cl) => (cl.id === id ? { ...cl, name } : cl))
-    );
+    setChecklists((prev) => prev.map((cl) => (cl.id === id ? { ...cl, name } : cl)));
   }, []);
 
   const deleteChecklist = useCallback((id: string) => {
@@ -64,10 +57,8 @@ export function useChecklists() {
   const addItem = useCallback((checklistId: string, label: string) => {
     setChecklists((prev) =>
       prev.map((cl) =>
-        cl.id === checklistId
-          ? { ...cl, items: [...cl.items, createItem(label)] }
-          : cl
-      )
+        cl.id === checklistId ? { ...cl, items: [...cl.items, createItem(label)] } : cl,
+      ),
     );
   }, []);
 
@@ -78,13 +69,11 @@ export function useChecklists() {
           ? {
               ...cl,
               items: cl.items.map((item) =>
-                item.id === itemId
-                  ? { ...item, checked: !item.checked }
-                  : item
+                item.id === itemId ? { ...item, checked: !item.checked } : item,
               ),
             }
-          : cl
-      )
+          : cl,
+      ),
     );
   }, []);
 
@@ -93,33 +82,30 @@ export function useChecklists() {
       prev.map((cl) =>
         cl.id === checklistId
           ? { ...cl, items: cl.items.filter((item) => item.id !== itemId) }
-          : cl
-      )
+          : cl,
+      ),
     );
   }, []);
 
-  const reorderItems = useCallback(
-    (checklistId: string, fromIndex: number, toIndex: number) => {
-      setChecklists((prev) =>
-        prev.map((cl) => {
-          if (cl.id !== checklistId) return cl;
-          const next = [...cl.items];
-          const [moved] = next.splice(fromIndex, 1);
-          next.splice(toIndex, 0, moved);
-          return { ...cl, items: next };
-        })
-      );
-    },
-    []
-  );
+  const reorderItems = useCallback((checklistId: string, fromIndex: number, toIndex: number) => {
+    setChecklists((prev) =>
+      prev.map((cl) => {
+        if (cl.id !== checklistId) return cl;
+        const next = [...cl.items];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, moved);
+        return { ...cl, items: next };
+      }),
+    );
+  }, []);
 
   const resetList = useCallback((checklistId: string) => {
     setChecklists((prev) =>
       prev.map((cl) =>
         cl.id === checklistId
           ? { ...cl, items: cl.items.map((item) => ({ ...item, checked: false })) }
-          : cl
-      )
+          : cl,
+      ),
     );
   }, []);
 
@@ -128,14 +114,15 @@ export function useChecklists() {
       prev.map((cl) => ({
         ...cl,
         items: cl.items.map((item) => ({ ...item, checked: false })),
-      }))
+      })),
     );
   }, []);
 
   // --- Derived ---
-  const selectedChecklist = activeView.type === "list"
-    ? checklists.find((cl) => cl.id === activeView.checklistId) ?? null
-    : null;
+  const selectedChecklist =
+    activeView.type === "list"
+      ? (checklists.find((cl) => cl.id === activeView.checklistId) ?? null)
+      : null;
 
   return {
     checklists,

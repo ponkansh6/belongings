@@ -6,16 +6,10 @@ export const metadata: Metadata = {
   description: "出かける前の忘れ物チェックリスト",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <body className="min-h-dvh bg-stone-50 text-stone-900 antialiased">
-        {children}
-      </body>
+      <body className="min-h-dvh bg-stone-50 text-stone-900 antialiased">{children}</body>
     </html>
   );
 }

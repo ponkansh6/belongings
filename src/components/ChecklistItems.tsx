@@ -24,12 +24,8 @@ export default function ChecklistItems({
   const [newItemLabel, setNewItemLabel] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    containerRef,
-    handlePointerDown,
-    getItemStyle,
-    isDragging,
-  } = useDragReorder(onReorderItems);
+  const { containerRef, handlePointerDown, getItemStyle, isDragging } =
+    useDragReorder(onReorderItems);
 
   // Focus input when switching lists
   useEffect(() => {
@@ -47,17 +43,14 @@ export default function ChecklistItems({
   }, [newItemLabel, onAddItem]);
 
   const checkedCount = checklist.items.filter((i) => i.checked).length;
-  const allChecked =
-    checklist.items.length > 0 && checkedCount === checklist.items.length;
+  const allChecked = checklist.items.length > 0 && checkedCount === checklist.items.length;
 
   return (
     <div className="flex flex-col gap-4">
       {/* Header area */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold text-stone-800">
-            {checklist.name}
-          </h2>
+          <h2 className="text-lg font-bold text-stone-800">{checklist.name}</h2>
           {checklist.items.length > 0 && (
             <p className="text-xs text-stone-400" aria-live="polite">
               {checkedCount}/{checklist.items.length} 完了
@@ -106,20 +99,13 @@ export default function ChecklistItems({
             <path d="M9 11l3 3L22 4" />
             <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
           </svg>
-          <p className="text-sm font-medium text-stone-500">
-            アイテムがまだありません
-          </p>
-          <p className="text-xs text-stone-400">
-            以下の入力欄から追加してください
-          </p>
+          <p className="text-sm font-medium text-stone-500">アイテムがまだありません</p>
+          <p className="text-xs text-stone-400">以下の入力欄から追加してください</p>
         </div>
       ) : (
         <>
           {/* Items list */}
-          <div
-            ref={containerRef}
-            className="-mx-1 flex flex-col gap-0.5"
-          >
+          <div ref={containerRef} className="-mx-1 flex flex-col gap-0.5">
             {checklist.items.map((item, index) => {
               const itemStyle = getItemStyle(index);
 
@@ -129,9 +115,7 @@ export default function ChecklistItems({
                   style={itemStyle}
                   aria-grabbed={isDragging}
                   className={`group flex items-center gap-1.5 rounded-xl px-1 transition-colors ${
-                    item.checked
-                      ? "bg-stone-50/80"
-                      : "bg-white hover:bg-stone-50"
+                    item.checked ? "bg-stone-50/80" : "bg-white hover:bg-stone-50"
                   }`}
                 >
                   {/* Drag handle */}
@@ -158,13 +142,13 @@ export default function ChecklistItems({
                   </button>
 
                   {/* Custom checkbox */}
-                    <label className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-stone-300 transition-colors has-checked:border-blue-500 has-checked:bg-blue-500">
-                      <input
-                        type="checkbox"
-                        checked={item.checked}
-                        onChange={() => onToggle(item.id)}
-                        className="peer sr-only"
-                      />
+                  <label className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-stone-300 transition-colors has-checked:border-blue-500 has-checked:bg-blue-500">
+                    <input
+                      type="checkbox"
+                      checked={item.checked}
+                      onChange={() => onToggle(item.id)}
+                      className="peer sr-only"
+                    />
                     {item.checked && (
                       <svg
                         width="12"
@@ -185,9 +169,7 @@ export default function ChecklistItems({
                   {/* Label */}
                   <span
                     className={`min-w-0 flex-1 truncate py-2.5 pr-1 text-sm transition-colors ${
-                      item.checked
-                        ? "text-stone-400 line-through"
-                        : "text-stone-700"
+                      item.checked ? "text-stone-400 line-through" : "text-stone-700"
                     }`}
                   >
                     {item.label}

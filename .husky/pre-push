@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # プッシュされるコミットに含まれるファイルのみチェック
-if git diff --name-only origin/main...HEAD | grep -qE "src/components|src/hooks|tests/"; then
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null | sed 's|refs/remotes/||')
+if [ -n "$UPSTREAM" ] && git diff --name-only "$UPSTREAM"...HEAD | grep -qE "src/components|src/hooks|tests/"; then
   echo "Running pre-push UI tests for relevant changes..."
   pnpm vitest run -c tests/vitest.ui.config.ts
   TEST_EXIT_CODE=$?

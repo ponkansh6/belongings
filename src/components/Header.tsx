@@ -9,9 +9,7 @@ export default function Header({ onResetAll, hasChecklists }: HeaderProps) {
   return (
     <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-stone-800">
-          Belongings Checker
-        </h1>
+        <h1 className="text-xl font-bold tracking-tight text-stone-800">Belongings Checker</h1>
         <p className="text-xs text-stone-400">出かける前の忘れ物チェック</p>
       </div>
       {hasChecklists && (

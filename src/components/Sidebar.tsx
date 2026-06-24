@@ -32,12 +32,7 @@ export default function Sidebar({
   const newInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    containerRef,
-    handlePointerDown,
-    getItemStyle,
-    isDragging,
-  } = useDragReorder(onReorder);
+  const { containerRef, handlePointerDown, getItemStyle, isDragging } = useDragReorder(onReorder);
 
   useEffect(() => {
     if (showNewInput) newInputRef.current?.focus();
@@ -64,7 +59,7 @@ export default function Sidebar({
       }
       setEditingId(null);
     },
-    [editingName, onRename]
+    [editingName, onRename],
   );
 
   const handleDelete = useCallback(
@@ -73,7 +68,7 @@ export default function Sidebar({
         onDelete(id);
       }
     },
-    [onDelete]
+    [onDelete],
   );
 
   const handleCancelNew = useCallback(() => {
@@ -84,7 +79,7 @@ export default function Sidebar({
   const totalItems = checklists.reduce((acc, cl) => acc + cl.items.length, 0);
   const checkedItems = checklists.reduce(
     (acc, cl) => acc + cl.items.filter((i) => i.checked).length,
-    0
+    0,
   );
 
   return (
@@ -119,9 +114,7 @@ export default function Sidebar({
               <path d="M9 1v16M1 9h16" />
             </svg>
           </div>
-          <p className="mb-3 text-sm font-medium text-stone-500">
-            チェックリストがありません
-          </p>
+          <p className="mb-3 text-sm font-medium text-stone-500">チェックリストがありません</p>
           <button
             type="button"
             onClick={() => setShowNewInput(true)}
@@ -148,9 +141,7 @@ export default function Sidebar({
           {checklists.length > 0 ? (
             <div ref={containerRef} className="flex flex-col gap-0.5">
               {checklists.map((cl, index) => {
-                const isActive =
-                  activeView.type === "list" &&
-                  activeView.checklistId === cl.id;
+                const isActive = activeView.type === "list" && activeView.checklistId === cl.id;
                 const isEditing = editingId === cl.id;
                 const itemStyle = getItemStyle(index);
                 const checkedCount = cl.items.filter((i) => i.checked).length;
@@ -161,9 +152,7 @@ export default function Sidebar({
                     style={itemStyle}
                     aria-grabbed={isDragging}
                     className={`group flex items-center gap-0.5 rounded-xl px-1 transition-colors ${
-                      isActive
-                        ? "bg-blue-50 ring-1 ring-blue-200"
-                        : "hover:bg-stone-100"
+                      isActive ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-stone-100"
                     }`}
                   >
                     {/* Drag handle */}
