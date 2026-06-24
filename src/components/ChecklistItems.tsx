@@ -144,7 +144,7 @@ export default function ChecklistItems({
                         }
                       }}
                       className={`relative flex items-center gap-1.5 rounded-xl px-1 transition-colors ${
-                        item.checked ? "bg-stone-50/80" : "bg-white hover:bg-stone-50"
+                        item.checked ? "bg-stone-100" : "bg-white hover:bg-stone-50"
                       }`}
                       aria-grabbed={isDragging}
                     >
