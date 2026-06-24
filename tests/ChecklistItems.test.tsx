@@ -95,6 +95,26 @@ describe("ChecklistItems", () => {
     expect(onToggle).toHaveBeenCalledWith("i-1");
   });
 
+  it("calls onToggle when label text is clicked (expanded hit area)", () => {
+    const onToggle = vi.fn();
+    renderItems({ onToggle });
+
+    // Click the label text itself, not the checkbox input
+    fireEvent.click(screen.getByText("Laptop"));
+
+    expect(onToggle).toHaveBeenCalledWith("i-1");
+  });
+
+  it("calls onToggle when checked item's label text is clicked", () => {
+    const onToggle = vi.fn();
+    renderItems({ onToggle });
+
+    // "Phone" is already checked — clicking its label should still toggle
+    fireEvent.click(screen.getByText("Phone"));
+
+    expect(onToggle).toHaveBeenCalledWith("i-2");
+  });
+
   it("calls onAddItem when adding a new item", () => {
     const onAddItem = vi.fn();
     renderItems({ onAddItem });

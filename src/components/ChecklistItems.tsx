@@ -144,9 +144,7 @@ export default function ChecklistItems({
                         }
                       }}
                       className={`relative flex items-center gap-1.5 rounded-xl px-1 transition-colors ${
-                        item.checked
-                          ? "bg-stone-50/80"
-                          : "bg-white hover:bg-stone-50"
+                        item.checked ? "bg-stone-50/80" : "bg-white hover:bg-stone-50"
                       }`}
                       aria-grabbed={isDragging}
                     >
@@ -176,41 +174,39 @@ export default function ChecklistItems({
                         </svg>
                       </button>
 
-                      {/* Custom checkbox */}
-                      <label className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 border-stone-300 transition-colors has-checked:border-blue-500 has-checked:bg-blue-500">
-                        <input
-                          type="checkbox"
-                          checked={item.checked}
-                          onChange={() => onToggle(item.id)}
-                          className="peer sr-only"
-                        />
-                        {item.checked && (
-                          <svg
-                            width="12"
-                            height="12"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                            stroke="white"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="pointer-events-none"
-                          >
-                            <polyline points="2.5 6 5 8.5 9.5 3.5" />
-                          </svg>
-                        )}
+                      {/* Custom checkbox — 行全体がクリック可能 */}
+                      <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 py-2.5 pr-1">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 border-stone-300 transition-colors has-checked:border-blue-500 has-checked:bg-blue-500">
+                          <input
+                            type="checkbox"
+                            checked={item.checked}
+                            onChange={() => onToggle(item.id)}
+                            className="peer sr-only"
+                          />
+                          {item.checked && (
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 12 12"
+                              fill="none"
+                              stroke="white"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="pointer-events-none"
+                            >
+                              <polyline points="2.5 6 5 8.5 9.5 3.5" />
+                            </svg>
+                          )}
+                        </span>
+                        <span
+                          className={`min-w-0 flex-1 truncate text-sm transition-colors ${
+                            item.checked ? "text-stone-400 line-through" : "text-stone-700"
+                          }`}
+                        >
+                          {item.label}
+                        </span>
                       </label>
-
-                      {/* Label */}
-                      <span
-                        className={`min-w-0 flex-1 truncate py-2.5 pr-1 text-sm transition-colors ${
-                          item.checked
-                            ? "text-stone-400 line-through"
-                            : "text-stone-700"
-                        }`}
-                      >
-                        {item.label}
-                      </span>
 
                       {/* Delete button — desktop/keyboard fallback */}
                       <button
