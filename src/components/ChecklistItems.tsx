@@ -23,6 +23,7 @@ export default function ChecklistItems({
   onReset,
 }: ChecklistItemsProps) {
   const [newItemLabel, setNewItemLabel] = useState("");
+  const [snapBackItems, setSnapBackItems] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { containerRef, handlePointerDown, getItemStyle, isDragging } =
@@ -138,9 +139,21 @@ export default function ChecklistItems({
                       dragDirectionLock
                       dragConstraints={{ left: -250, right: 0 }}
                       dragElastic={{ left: 0.2, right: 0 }}
+                      animate={snapBackItems.has(item.id) ? { x: 0 } : undefined}
+                      onAnimationComplete={() => {
+                        if (snapBackItems.has(item.id)) {
+                          setSnapBackItems((prev) => {
+                            const next = new Set(prev);
+                            next.delete(item.id);
+                            return next;
+                          });
+                        }
+                      }}
                       onDragEnd={(_event, info) => {
                         if (info.offset.x < -180) {
                           onDeleteItem(item.id);
+                        } else if (info.offset.x < 0) {
+                          setSnapBackItems((prev) => new Set(prev).add(item.id));
                         }
                       }}
                       className={`relative flex items-center gap-1.5 rounded-xl px-1 transition-colors ${

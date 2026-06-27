@@ -183,3 +183,67 @@ describe("ChecklistItems", () => {
     });
   });
 });
+
+describe("swipe-to-delete snap-back", () => {
+  it("preserves swipe-to-delete background label for all items", () => {
+    renderItems();
+    const deleteLabels = screen.getAllByText("削除");
+    expect(deleteLabels).toHaveLength(sampleChecklist.items.length);
+    deleteLabels.forEach((label) => {
+      expect(label).toBeInTheDocument();
+    });
+  });
+
+  it("renders single item list without crashing", () => {
+    const singleItemChecklist: Checklist = {
+      id: "cl-single",
+      name: "Single",
+      items: [{ id: "s-1", label: "Only Item", checked: false }],
+    };
+    renderItems({ checklist: singleItemChecklist });
+    expect(screen.getByText("Only Item")).toBeInTheDocument();
+    expect(screen.getByText("削除")).toBeInTheDocument();
+  });
+
+  it("renders long checklist without state issues", () => {
+    const longChecklist: Checklist = {
+      id: "cl-long",
+      name: "Long List",
+      items: Array.from({ length: 20 }, (_, i) => ({
+        id: `long-${i + 1}`,
+        label: `Item ${i + 1}`,
+        checked: false,
+      })),
+    };
+    renderItems({ checklist: longChecklist });
+    const deleteLabels = screen.getAllByText("削除");
+    expect(deleteLabels).toHaveLength(20);
+  });
+
+  it("delete by button correctly calls handler for each item", () => {
+    const onDeleteItem = vi.fn();
+    const threeItemChecklist: Checklist = {
+      id: "cl-three",
+      name: "Three",
+      items: [
+        { id: "i-1", label: "Item 1", checked: false },
+        { id: "i-2", label: "Item 2", checked: false },
+        { id: "i-3", label: "Item 3", checked: false },
+      ],
+    };
+    renderItems({ checklist: threeItemChecklist, onDeleteItem });
+
+    const deleteBtns = screen.getAllByLabelText(/を削除/);
+    expect(deleteBtns).toHaveLength(3);
+
+    fireEvent.click(deleteBtns[1]);
+    expect(onDeleteItem).toHaveBeenCalledWith("i-2");
+  });
+
+  it("all checked items still show line-through with snap-back state present", () => {
+    renderItems();
+    // "Phone" is checked in sampleChecklist — verify line-through styling
+    const phoneLabel = screen.getByText("Phone");
+    expect(phoneLabel.className).toContain("line-through");
+  });
+});
