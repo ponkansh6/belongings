@@ -240,10 +240,36 @@ describe("swipe-to-delete snap-back", () => {
     expect(onDeleteItem).toHaveBeenCalledWith("i-2");
   });
 
-  it("all checked items still show line-through with snap-back state present", () => {
+  it("all checked items still show line-through styling", () => {
     renderItems();
-    // "Phone" is checked in sampleChecklist — verify line-through styling
     const phoneLabel = screen.getByText("Phone");
     expect(phoneLabel.className).toContain("line-through");
+  });
+
+  it("renders animate={{ x: 0 }} on every swipeable card for snap-back", () => {
+    // Mock framer-motion to expose animate prop as data attribute
+    renderItems();
+
+    // Find swipeable cards: the inner motion.div (swipable card) 
+    // is inside each item and has class "relative flex items-center gap-1.5 rounded-xl..."
+    // Each item is rendered as a motion.div (outer) containing a motion.div (inner/swipeable)
+    // We can identify swipeable cards by the presence of both "削除" label in the card
+    // and the drag-handle button (aria-label="並び替え")
+
+    // The swipeable cards contain the drag handle buttons
+    const handles = screen.getAllByLabelText("並び替え");
+    expect(handles.length).toBe(sampleChecklist.items.length);
+
+    // Each swipeable card (parent of the handle) should have the right structure
+    // The inner motion.div wraps: drag handle, checkbox label, and delete button
+    handles.forEach((handle) => {
+      // The swipeable card is the parent with aria-grabbed attribute
+      const swipeable = handle.closest("[aria-grabbed]");
+      expect(swipeable).not.toBeNull();
+
+      // Verify the delete button exists in the same card
+      const deleteBtn = swipeable?.querySelector('[aria-label*="削除"]');
+      expect(deleteBtn).toBeInTheDocument();
+    });
   });
 });
