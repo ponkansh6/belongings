@@ -130,6 +130,7 @@ export default function ChecklistItems({
                   <motion.div
                     key={item.id}
                     layout
+                    data-testid="checklist-item"
                     initial={{ opacity: 1, x: 0 }}
                     exit={{
                       opacity: 0,
@@ -306,12 +307,8 @@ export default function ChecklistItems({
                     <circle cx="36" cy="36" r="32" />
                     <polyline points="20 36 32 48 52 24" />
                   </svg>
-                  <p className="text-2xl font-semibold text-stone-800">
-                    行ってらっしゃい！
-                  </p>
-                  <p className="mt-1 text-sm text-stone-500">
-                    準備完了。よい旅を。
-                  </p>
+                  <p className="text-2xl font-semibold text-stone-800">行ってらっしゃい！</p>
+                  <p className="mt-1 text-sm text-stone-500">準備完了。よい旅を。</p>
                 </motion.div>
               </motion.div>
             )}

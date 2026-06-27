@@ -117,7 +117,6 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
       if (!state) return;
       // Reset overIndex to prevent reorder
       dragRef.current = { ...state, overIndex: state.fromIndex };
-      setDragState(dragRef.current!);
       handleEnd();
     };
 
@@ -142,10 +141,9 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
 
   /** Returns CSSProperties for an item at the given index during a drag */
   const getItemStyle = useCallback((index: number): React.CSSProperties => {
-    const state = dragRef.current;
-    if (!state || !state.active) return {};
+    if (!dragState || !dragState.active) return { opacity: 1 };
 
-    const { fromIndex, overIndex } = state;
+    const { fromIndex, overIndex } = dragState;
 
     // Dim the dragged item — no pointer-tracking animation
     if (index === fromIndex) {
@@ -159,11 +157,12 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
     if (overIndex !== fromIndex && index === overIndex) {
       return {
         borderTop: "2px solid #3b82f6",
+        opacity: 1,
       };
     }
 
-    return {};
-  }, []);
+    return { opacity: 1 };
+  }, [dragState]);
 
   return {
     dragState,

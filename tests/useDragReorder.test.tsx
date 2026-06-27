@@ -165,7 +165,7 @@ describe("useDragReorder", () => {
     expect(getByTestId("dragging").textContent).toBe("true");
 
     // Before timer fires: no visual transform
-    expect(handleNode.style.opacity).toBe("");
+    expect(handleNode.style.opacity).toBe("1");
     expect(handleNode.style.transform).toBe("");
 
     // Fire the long-press timer
@@ -305,7 +305,7 @@ describe("useDragReorder", () => {
 
     // After flush, opacity should be restored to normal
     expect(item0.style.opacity).not.toBe("0.3");
-    expect(item0.style.opacity).toBe("");
+    expect(item0.style.opacity).toBe("1");
   });
 
   it("restores full opacity after a reorder completes", () => {
@@ -325,7 +325,7 @@ describe("useDragReorder", () => {
 
     // After reorder, opacity should be restored
     expect(item0.style.opacity).not.toBe("0.3");
-    expect(item0.style.opacity).toBe("");
+    expect(item0.style.opacity).toBe("1");
   });
 
   it("shows bottom indicator when dragging below the last item", () => {
@@ -362,6 +362,6 @@ describe("useDragReorder", () => {
 
     // After parent re-render, opacity should be restored
     expect(item0.style.opacity).not.toBe("0.3");
-    expect(item0.style.opacity).toBe("");
+    expect(item0.style.opacity).toBe("1");
   });
 });
