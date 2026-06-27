@@ -15,8 +15,7 @@ interface DragState {
   active: boolean;
 }
 
-const DRAG_THRESHOLD = 15; // px of movement before drag activates
-const DRAG_RESISTANCE = 0.5; // multiplier for drag tracking (lower = heavier)
+export const LONG_PRESS_DURATION = 150; // ms to hold before drag activates
 
 /**
  * Custom hook for drag-and-drop reordering.
@@ -29,6 +28,7 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
   const containerRef = useRef<HTMLDivElement>(null);
   const onReorderRef = useRef(onReorder);
   onReorderRef.current = onReorder;
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getIndexFromY = useCallback((clientY: number): number => {
     const container = containerRef.current;
@@ -44,6 +44,12 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
   const handlePointerDown = useCallback((index: number, e: React.PointerEvent) => {
     if (e.button !== 0) return;
 
+    // Clear any existing timer
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
     const item = containerRef.current?.children[index] as HTMLElement | undefined;
     if (!item) return;
 
@@ -58,30 +64,32 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
     };
     dragRef.current = state;
     setDragState(state);
+
+    // Start long-press timer
+    longPressTimerRef.current = setTimeout(() => {
+      if (dragRef.current) {
+        dragRef.current = { ...dragRef.current, active: true };
+        setDragState({ ...dragRef.current! });
+      }
+    }, LONG_PRESS_DURATION);
   }, []);
 
   // Always-attached listeners; check dragRef.current to determine if active
   useEffect(() => {
+    const cleanUp = () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+
     const handlePointerMove = (e: PointerEvent) => {
       const state = dragRef.current;
-      if (!state) return;
-
-      const dy = Math.abs(e.clientY - state.startY);
-
-      if (!state.active) {
-        if (dy < DRAG_THRESHOLD) return;
-        // Crossed threshold — activate drag
-        const visualY = state.startY + (e.clientY - state.startY) * DRAG_RESISTANCE;
-        const overIndex = getIndexFromY(visualY);
-        dragRef.current = { ...state, active: true, currentY: e.clientY, overIndex };
-        setDragState(dragRef.current!);
-        return;
-      }
+      if (!state || !state.active) return;
 
       e.preventDefault();
 
-      const visualY = state.startY + (e.clientY - state.startY) * DRAG_RESISTANCE;
-      const overIndex = getIndexFromY(visualY);
+      const overIndex = getIndexFromY(e.clientY);
       if (overIndex !== state.overIndex || e.clientY !== state.currentY) {
         const next = { ...state, currentY: e.clientY, overIndex };
         dragRef.current = next;
@@ -90,6 +98,7 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
     };
 
     const handleEnd = () => {
+      cleanUp();
       const state = dragRef.current;
       if (!state) return;
       if (state.active && state.fromIndex !== state.overIndex) {
@@ -101,6 +110,7 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
 
     /** Cancel drag without committing a reorder */
     const handleCancel = () => {
+      cleanUp();
       const state = dragRef.current;
       if (!state) return;
       // Reset overIndex to prevent reorder
@@ -120,9 +130,10 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
     document.addEventListener("pointercancel", handleCancel);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
+      cleanUp();
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("pointerup", handleEnd);
-      document.removeEventListener("pointercancel", handleEnd);
+      document.removeEventListener("pointercancel", handleCancel);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [getIndexFromY]);
@@ -137,7 +148,7 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
     if (index === fromIndex) {
       return {
         opacity: 0.3,
-        transform: `translateY(${(currentY - startY) * DRAG_RESISTANCE}px)`,
+        transform: `translateY(${currentY - startY}px)`,
         transition: "opacity 0.15s ease",
         position: "relative",
         zIndex: 10,

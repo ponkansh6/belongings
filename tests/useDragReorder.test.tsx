@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
-import { useDragReorder } from "@/hooks/useDragReorder";
+import { useDragReorder, LONG_PRESS_DURATION } from "@/hooks/useDragReorder";
+import { act } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 /**
@@ -72,6 +73,7 @@ function rectForItem(index: number, itemHeight = 40): DOMRect {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers();
   // Stub getBoundingClientRect on all elements
   Element.prototype.getBoundingClientRect = function () {
     const testId = this.getAttribute?.("data-testid") ?? "";
@@ -81,6 +83,10 @@ beforeEach(() => {
     }
     return rectForItem(0);
   };
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("useDragReorder", () => {
@@ -97,56 +103,69 @@ describe("useDragReorder", () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
-  it("shows drag visual only after threshold is crossed", () => {
+  it("shows drag visual only after long-press duration", () => {
     const onReorder = vi.fn();
     const { getByTestId } = render(<TestList count={3} onReorder={onReorder} />);
 
     const handle = getByTestId("handle-0");
-    const handleNode = getByTestId("handle-0").closest('[data-testid^="item-"]')!;
+    const handleNode = handle.closest('[data-testid^="item-"]')!;
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
 
-    // isDragging=true from pointerdown (hook tracks drag attempt)
+    // isDragging = true from pointerdown
     expect(getByTestId("dragging").textContent).toBe("true");
 
-    // Before threshold: no visual transform yet
-    expect(handleNode.style.opacity).toBe("");
-
-    // Just below threshold: 5px move from 10
-    fireEvent(document, pointerEvent("pointermove", { clientY: 5 }));
+    // Before timer fires: no visual transform
     expect(handleNode.style.opacity).toBe("");
     expect(handleNode.style.transform).toBe("");
 
-    // Cross threshold: 16px total (new DRAG_THRESHOLD=15)
-    fireEvent(document, pointerEvent("pointermove", { clientY: -6 }));
-    expect(handleNode.style.transform).toContain("translateY");
+    // Fire the long-press timer
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
+
+    // Now active: opacity should be set even before any move
+    expect(handleNode.style.opacity).toBe("0.3");
+
+    // After activation, move should show 1:1 tracking
+    fireEvent(document, pointerEvent("pointermove", { clientY: 30 }));
+    expect(handleNode.style.transform).toContain("translateY(20px)"); // 1:1 from y=10
   });
 
-  it("calls onReorder when an item is dragged to a new position", () => {
+  it("calls onReorder when an item is long-pressed and dragged", () => {
     const onReorder = vi.fn();
     const { getByTestId } = render(<TestList count={3} onReorder={onReorder} />);
 
     const handle = getByTestId("handle-0");
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
 
-    // Move down past threshold (items at y=0,40,80; midpoint of item 1 at y=60)
-    // Use clientY=50 -> index 1, dy=40 > 8 -> activates drag
+    // Wait for long-press to activate
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
+
+    // Move down (items at y=0,40,80; midpoint of item 1 at y=60)
+    // clientY=50 → dy=40 → 1:1 tracking → overIndex=1
     fireEvent(document, pointerEvent("pointermove", { clientY: 50 }));
     fireEvent(document, pointerEvent("pointerup"));
 
-    // Item 0 moved to position 1 (below the midpoint of item 1 at y=50 < 60)
     expect(onReorder).toHaveBeenCalledWith(0, 1);
   });
 
-  it("does not call onReorder when item returns to original position", () => {
+  it("does not call onReorder when item returns to original position after long-press", () => {
     const onReorder = vi.fn();
     const { getByTestId } = render(<TestList count={3} onReorder={onReorder} />);
 
     const handle = getByTestId("handle-0");
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
 
-    // Move past threshold
+    // Wait for long-press
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
+
+    // Move down
     fireEvent(document, pointerEvent("pointermove", { clientY: 50 }));
-    // Return to original position area
+    // Return to original position
     fireEvent(document, pointerEvent("pointermove", { clientY: 10 }));
     fireEvent(document, pointerEvent("pointerup"));
 
@@ -160,6 +179,11 @@ describe("useDragReorder", () => {
 
     const handle = getByTestId("handle-0");
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
+
+    // Wait for long-press to activate
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
 
     // Move past threshold
     fireEvent(document, pointerEvent("pointermove", { clientY: 60 }));
@@ -189,6 +213,12 @@ describe("useDragReorder", () => {
 
     const handle = getByTestId("handle-0");
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
+
+    // Wait for long-press to activate
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
+
     fireEvent(document, pointerEvent("pointermove", { clientY: 60 }));
 
     // pointercancel should end without calling onReorder
