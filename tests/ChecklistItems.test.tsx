@@ -11,15 +11,7 @@ vi.mock("framer-motion", async () => {
       children,
       // Strip all framer-motion-specific props to avoid React warnings
       animate,
-      onDragEnd,
       onAnimationComplete,
-      onDragStart,
-      onDrag,
-      drag,
-      dragDirectionLock,
-      dragConstraints,
-      dragElastic,
-      dragSnapToOrigin: dragSnapToOriginProp,
       layout,
       layoutId,
       layoutDependency,
@@ -38,43 +30,7 @@ vi.mock("framer-motion", async () => {
       ...htmlProps
     } = props;
 
-    const isDraggable = drag !== undefined;
-    const dragSnapToOrigin = Boolean(dragSnapToOriginProp);
-    const [xPos, setXPos] = React.useState(0);
-
-    // Keep latest onDragEnd in a ref so the stable wrapper never goes stale
-    const onDragEndRef = React.useRef(onDragEnd);
-    onDragEndRef.current = onDragEnd;
-
-    // Stable wrapper that calls the real onDragEnd then simulates position change
-    const wrappedOnDragEnd = React.useCallback(
-      (event: unknown, info: { offset: { x: number } }) => {
-        onDragEndRef.current?.(event, info);
-        // After gesture end, dragSnapToOrigin springs the card back to x=0
-        setXPos(dragSnapToOrigin ? 0 : info.offset.x);
-      },
-      [dragSnapToOrigin],
-    );
-
-    // Register wrapped callback once per swipeable card
-    React.useEffect(() => {
-      if (isDraggable && onDragEnd !== undefined) {
-        if (!globalThis.__dragEndCallbacks) {
-          globalThis.__dragEndCallbacks = [];
-        }
-        globalThis.__dragEndCallbacks.push(wrappedOnDragEnd);
-      }
-    }, [isDraggable, onDragEnd, wrappedOnDragEnd]);
-
-    return React.createElement("div", {
-      ...htmlProps,
-      ...(isDraggable
-        ? {
-            "data-test-drag-snap": String(dragSnapToOrigin),
-            "data-test-x": String(xPos),
-          }
-        : {}),
-    }, children as React.ReactNode);
+    return React.createElement("div", htmlProps, children as React.ReactNode);
   }
 
   return {
@@ -82,10 +38,6 @@ vi.mock("framer-motion", async () => {
     AnimatePresence: ({ children }: { children: React.ReactNode }) =>
       React.createElement(React.Fragment, null, children),
   };
-});
-
-beforeEach(() => {
-  (globalThis as any).__dragEndCallbacks = [];
 });
 
 const sampleChecklist: Checklist = {
@@ -169,17 +121,6 @@ describe("ChecklistItems", () => {
     expect(screen.queryByText("このリストをリセット")).not.toBeInTheDocument();
   });
 
-  it("calls onToggle when checkbox is clicked", () => {
-    const onToggle = vi.fn();
-    renderItems({ onToggle });
-
-    // The checkbox is visually hidden (sr-only), so we query by role
-    const checkboxes = screen.getAllByRole("checkbox");
-    fireEvent.click(checkboxes[0]);
-
-    expect(onToggle).toHaveBeenCalledWith("i-1");
-  });
-
   it("calls onToggle when label text is clicked (expanded hit area)", () => {
     const onToggle = vi.fn();
     renderItems({ onToggle });
@@ -243,68 +184,6 @@ describe("ChecklistItems", () => {
     expect(onDeleteItem).toHaveBeenCalledWith("i-1");
   });
 
-  it("calls onReset when reset button is clicked", () => {
-    const onReset = vi.fn();
-    renderItems({ onReset });
-
-    fireEvent.click(screen.getByText("このリストをリセット"));
-
-    expect(onReset).toHaveBeenCalledOnce();
-  });
-
-  it("shows checked items with line-through styling", () => {
-    renderItems();
-    const phoneLabel = screen.getByText("Phone");
-    expect(phoneLabel.className).toContain("line-through");
-  });
-
-  it('shows the swipe-to-delete "削除" label for each item', () => {
-    renderItems();
-    const deleteLabels = screen.getAllByText("削除");
-    expect(deleteLabels).toHaveLength(3); // one per item
-    deleteLabels.forEach((label) => {
-      expect(label).toBeInTheDocument();
-      expect(label.tagName).toBe("SPAN");
-    });
-  });
-});
-
-describe("swipe-to-delete snap-back", () => {
-  it("preserves swipe-to-delete background label for all items", () => {
-    renderItems();
-    const deleteLabels = screen.getAllByText("削除");
-    expect(deleteLabels).toHaveLength(sampleChecklist.items.length);
-    deleteLabels.forEach((label) => {
-      expect(label).toBeInTheDocument();
-    });
-  });
-
-  it("renders single item list without crashing", () => {
-    const singleItemChecklist: Checklist = {
-      id: "cl-single",
-      name: "Single",
-      items: [{ id: "s-1", label: "Only Item", checked: false }],
-    };
-    renderItems({ checklist: singleItemChecklist });
-    expect(screen.getByText("Only Item")).toBeInTheDocument();
-    expect(screen.getByText("削除")).toBeInTheDocument();
-  });
-
-  it("renders long checklist without state issues", () => {
-    const longChecklist: Checklist = {
-      id: "cl-long",
-      name: "Long List",
-      items: Array.from({ length: 20 }, (_, i) => ({
-        id: `long-${i + 1}`,
-        label: `Item ${i + 1}`,
-        checked: false,
-      })),
-    };
-    renderItems({ checklist: longChecklist });
-    const deleteLabels = screen.getAllByText("削除");
-    expect(deleteLabels).toHaveLength(20);
-  });
-
   it("delete by button correctly calls handler for each item", () => {
     const onDeleteItem = vi.fn();
     const threeItemChecklist: Checklist = {
@@ -325,111 +204,131 @@ describe("swipe-to-delete snap-back", () => {
     expect(onDeleteItem).toHaveBeenCalledWith("i-2");
   });
 
-  it("all checked items still show line-through styling", () => {
+  it("calls onReset when reset button is clicked", () => {
+    const onReset = vi.fn();
+    renderItems({ onReset });
+
+    fireEvent.click(screen.getByText("このリストをリセット"));
+
+    expect(onReset).toHaveBeenCalledOnce();
+  });
+
+  it("shows checked items with line-through styling", () => {
     renderItems();
     const phoneLabel = screen.getByText("Phone");
     expect(phoneLabel.className).toContain("line-through");
   });
 
-  it("sets dragSnapToOrigin on every swipeable card for snap-back", () => {
+  it("shows delete confirmation popup on long-press", () => {
+    vi.useFakeTimers();
+    try {
+      renderItems();
+
+      // Long-press on "Laptop" label text
+      fireEvent.pointerDown(screen.getByText("Laptop"));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      // Popup should appear with the item text
+      expect(screen.getByText(/「Laptop」を削除しますか/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("calls onDeleteItem when confirming deletion from popup", () => {
+    vi.useFakeTimers();
+    const onDeleteItem = vi.fn();
+    try {
+      renderItems({ onDeleteItem });
+
+      // Long-press on "Laptop"
+      fireEvent.pointerDown(screen.getByText("Laptop"));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      // Click confirm delete button
+      fireEvent.click(screen.getByText("削除"));
+
+      expect(onDeleteItem).toHaveBeenCalledWith("i-1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not call onDeleteItem when cancelling deletion from popup", () => {
+    vi.useFakeTimers();
+    const onDeleteItem = vi.fn();
+    try {
+      renderItems({ onDeleteItem });
+
+      // Long-press on "Laptop"
+      fireEvent.pointerDown(screen.getByText("Laptop"));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      // Click cancel
+      fireEvent.click(screen.getByText("キャンセル"));
+
+      expect(onDeleteItem).not.toHaveBeenCalled();
+      // Popup should be gone
+      expect(screen.queryByText(/を削除しますか/)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes popup on backdrop click", () => {
+    vi.useFakeTimers();
+    const onDeleteItem = vi.fn();
+    try {
+      renderItems({ onDeleteItem });
+
+      // Long-press on "Laptop"
+      fireEvent.pointerDown(screen.getByText("Laptop"));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      // Popup should be visible
+      act(() => {
+        expect(screen.getByText(/を削除しますか/)).toBeInTheDocument();
+      });
+
+      // Click the backdrop
+      act(() => {
+        fireEvent.click(screen.getByTestId("delete-backdrop"));
+      });
+
+      expect(onDeleteItem).not.toHaveBeenCalled();
+      expect(screen.queryByText(/を削除しますか/)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not show popup on short click", () => {
     renderItems();
 
-    // Each drag handle button lives inside a swipeable card
-    const handles = screen.getAllByLabelText("並び替え");
-    expect(handles.length).toBe(sampleChecklist.items.length);
+    // Quick pointer down/up on label (no long-press)
+    fireEvent.pointerDown(screen.getByText("Laptop"));
+    fireEvent.pointerUp(screen.getByText("Laptop"));
 
-    // Each handle's closest ancestor with data-test-drag-snap
-    // is the swipeable card (inner motion.div with drag="x")
-    handles.forEach((handle) => {
-      const swipeable = handle.closest("[data-test-drag-snap]");
-      expect(swipeable).not.toBeNull();
-      expect(swipeable?.getAttribute("data-test-drag-snap")).toBe("true");
-    });
+    // No popup
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
-  it("calls onDeleteItem when full swipe passes deletion threshold", () => {
-    const onDeleteItem = vi.fn();
-    renderItems({
-      checklist: {
-        id: "cl-test",
-        name: "Test",
-        items: [
-          { id: "t-1", label: "Item A", checked: false },
-        ],
-      },
-      onDeleteItem,
-    });
-
-    const [dragEnd] = (globalThis as any).__dragEndCallbacks;
-    expect(dragEnd).toBeDefined();
-
-    // Simulate full swipe past -180px threshold
-    dragEnd({}, { offset: { x: -200 } });
-
-    expect(onDeleteItem).toHaveBeenCalledWith("t-1");
-    expect(onDeleteItem).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not call onDeleteItem on partial swipe, card stays in normal state", () => {
+  it("desktop delete button still works without popup", () => {
     const onDeleteItem = vi.fn();
     renderItems({ onDeleteItem });
 
-    const callbacks = (globalThis as any).__dragEndCallbacks;
-    expect(callbacks.length).toBe(sampleChecklist.items.length);
+    const deleteBtns = screen.getAllByLabelText(/を削除/);
+    fireEvent.click(deleteBtns[0]);
 
-    // Simulate partial swipe on each card (not enough to delete)
-    callbacks.forEach((cb: (event: unknown, info: { offset: { x: number } }) => void) => {
-      cb({}, { offset: { x: -50 } });
-    });
-
-    // No deletion should occur
-    expect(onDeleteItem).not.toHaveBeenCalled();
-
-    // All items should still be rendered in their normal state
-    expect(screen.getByText("Laptop")).toBeInTheDocument();
-    expect(screen.getByText("Phone")).toBeInTheDocument();
-    expect(screen.getByText("Wallet")).toBeInTheDocument();
-  });
-
-  it("handles mixed swipes: partial then full on same card", () => {
-    const onDeleteItem = vi.fn();
-    renderItems({
-      checklist: {
-        id: "cl-mix",
-        name: "Mixed",
-        items: [
-          { id: "m-1", label: "Target", checked: false },
-        ],
-      },
-      onDeleteItem,
-    });
-
-    const [dragEnd] = (globalThis as any).__dragEndCallbacks;
-
-    // First: partial swipe (should not delete)
-    dragEnd({}, { offset: { x: -50 } });
-    expect(onDeleteItem).not.toHaveBeenCalled();
-
-    // Then: full swipe on same card (should delete)
-    dragEnd({}, { offset: { x: -200 } });
-    expect(onDeleteItem).toHaveBeenCalledWith("m-1");
-    expect(onDeleteItem).toHaveBeenCalledTimes(1);
-  });
-
-  it("snaps card back to x=0 after partial swipe (dragSnapToOrigin)", async () => {
-    renderItems();
-
-    const handles = screen.getAllByLabelText("並び替え");
-    const callbacks = (globalThis as any).__dragEndCallbacks;
-
-    // Simulate a partial swipe on the first card (well under -180px threshold)
-    await act(async () => {
-      callbacks[0]({}, { offset: { x: -50 } });
-    });
-
-    // The card should have snapped back to origin (x=0) via dragSnapToOrigin
-    const swipeable = handles[0].closest("[data-test-x]");
-    expect(swipeable).not.toBeNull();
-    expect(swipeable?.getAttribute("data-test-x")).toBe("0");
+    expect(onDeleteItem).toHaveBeenCalledWith("i-1");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 });
