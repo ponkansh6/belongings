@@ -46,6 +46,19 @@ export default function ChecklistItems({
   const checkedCount = checklist.items.filter((i) => i.checked).length;
   const allChecked = checklist.items.length > 0 && checkedCount === checklist.items.length;
 
+  const [showCelebration, setShowCelebration] = useState(false);
+  const prevAllCheckedRef = useRef(allChecked);
+
+  // Detect 100% completion and show celebration briefly
+  useEffect(() => {
+    if (allChecked && !prevAllCheckedRef.current) {
+      setShowCelebration(true);
+      const t = setTimeout(() => setShowCelebration(false), 3000);
+      return () => clearTimeout(t);
+    }
+    prevAllCheckedRef.current = allChecked;
+  }, [allChecked]);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header area */}
@@ -250,6 +263,35 @@ export default function ChecklistItems({
               }}
             />
           </div>
+
+          {/* 100% celebration banner */}
+          <AnimatePresence>
+            {showCelebration && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700"
+                role="status"
+                aria-live="polite"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="3 8 7 12 13 4" />
+                </svg>
+                すべて完了！
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
 
