@@ -1,7 +1,92 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import ChecklistItems from "@/components/ChecklistItems";
 import type { Checklist } from "@/lib/types";
+
+vi.mock("framer-motion", async () => {
+  const React = await import("react");
+
+  function MockMotionDiv(props: Record<string, unknown>) {
+    const {
+      children,
+      // Strip all framer-motion-specific props to avoid React warnings
+      animate,
+      onDragEnd,
+      onAnimationComplete,
+      onDragStart,
+      onDrag,
+      drag,
+      dragDirectionLock,
+      dragConstraints,
+      dragElastic,
+      dragSnapToOrigin: dragSnapToOriginProp,
+      layout,
+      layoutId,
+      layoutDependency,
+      initial,
+      exit,
+      whileDrag,
+      whileHover,
+      whileTap,
+      whileFocus,
+      whileInView,
+      transition,
+      variants,
+      onViewportEnter,
+      onViewportLeave,
+      viewport,
+      ...htmlProps
+    } = props;
+
+    const isDraggable = drag !== undefined;
+    const dragSnapToOrigin = Boolean(dragSnapToOriginProp);
+    const [xPos, setXPos] = React.useState(0);
+
+    // Keep latest onDragEnd in a ref so the stable wrapper never goes stale
+    const onDragEndRef = React.useRef(onDragEnd);
+    onDragEndRef.current = onDragEnd;
+
+    // Stable wrapper that calls the real onDragEnd then simulates position change
+    const wrappedOnDragEnd = React.useCallback(
+      (event: unknown, info: { offset: { x: number } }) => {
+        onDragEndRef.current?.(event, info);
+        // After gesture end, dragSnapToOrigin springs the card back to x=0
+        setXPos(dragSnapToOrigin ? 0 : info.offset.x);
+      },
+      [dragSnapToOrigin],
+    );
+
+    // Register wrapped callback once per swipeable card
+    React.useEffect(() => {
+      if (isDraggable && onDragEnd !== undefined) {
+        if (!globalThis.__dragEndCallbacks) {
+          globalThis.__dragEndCallbacks = [];
+        }
+        globalThis.__dragEndCallbacks.push(wrappedOnDragEnd);
+      }
+    }, [isDraggable, onDragEnd, wrappedOnDragEnd]);
+
+    return React.createElement("div", {
+      ...htmlProps,
+      ...(isDraggable
+        ? {
+            "data-test-drag-snap": String(dragSnapToOrigin),
+            "data-test-x": String(xPos),
+          }
+        : {}),
+    }, children as React.ReactNode);
+  }
+
+  return {
+    motion: { div: MockMotionDiv },
+    AnimatePresence: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+  };
+});
+
+beforeEach(() => {
+  (globalThis as any).__dragEndCallbacks = [];
+});
 
 const sampleChecklist: Checklist = {
   id: "cl-1",
@@ -246,30 +331,105 @@ describe("swipe-to-delete snap-back", () => {
     expect(phoneLabel.className).toContain("line-through");
   });
 
-  it("renders animate={{ x: 0 }} on every swipeable card for snap-back", () => {
-    // Mock framer-motion to expose animate prop as data attribute
+  it("sets dragSnapToOrigin on every swipeable card for snap-back", () => {
     renderItems();
 
-    // Find swipeable cards: the inner motion.div (swipable card) 
-    // is inside each item and has class "relative flex items-center gap-1.5 rounded-xl..."
-    // Each item is rendered as a motion.div (outer) containing a motion.div (inner/swipeable)
-    // We can identify swipeable cards by the presence of both "削除" label in the card
-    // and the drag-handle button (aria-label="並び替え")
-
-    // The swipeable cards contain the drag handle buttons
+    // Each drag handle button lives inside a swipeable card
     const handles = screen.getAllByLabelText("並び替え");
     expect(handles.length).toBe(sampleChecklist.items.length);
 
-    // Each swipeable card (parent of the handle) should have the right structure
-    // The inner motion.div wraps: drag handle, checkbox label, and delete button
+    // Each handle's closest ancestor with data-test-drag-snap
+    // is the swipeable card (inner motion.div with drag="x")
     handles.forEach((handle) => {
-      // The swipeable card is the parent with aria-grabbed attribute
-      const swipeable = handle.closest("[aria-grabbed]");
+      const swipeable = handle.closest("[data-test-drag-snap]");
       expect(swipeable).not.toBeNull();
-
-      // Verify the delete button exists in the same card
-      const deleteBtn = swipeable?.querySelector('[aria-label*="削除"]');
-      expect(deleteBtn).toBeInTheDocument();
+      expect(swipeable?.getAttribute("data-test-drag-snap")).toBe("true");
     });
+  });
+
+  it("calls onDeleteItem when full swipe passes deletion threshold", () => {
+    const onDeleteItem = vi.fn();
+    renderItems({
+      checklist: {
+        id: "cl-test",
+        name: "Test",
+        items: [
+          { id: "t-1", label: "Item A", checked: false },
+        ],
+      },
+      onDeleteItem,
+    });
+
+    const [dragEnd] = (globalThis as any).__dragEndCallbacks;
+    expect(dragEnd).toBeDefined();
+
+    // Simulate full swipe past -180px threshold
+    dragEnd({}, { offset: { x: -200 } });
+
+    expect(onDeleteItem).toHaveBeenCalledWith("t-1");
+    expect(onDeleteItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call onDeleteItem on partial swipe, card stays in normal state", () => {
+    const onDeleteItem = vi.fn();
+    renderItems({ onDeleteItem });
+
+    const callbacks = (globalThis as any).__dragEndCallbacks;
+    expect(callbacks.length).toBe(sampleChecklist.items.length);
+
+    // Simulate partial swipe on each card (not enough to delete)
+    callbacks.forEach((cb: (event: unknown, info: { offset: { x: number } }) => void) => {
+      cb({}, { offset: { x: -50 } });
+    });
+
+    // No deletion should occur
+    expect(onDeleteItem).not.toHaveBeenCalled();
+
+    // All items should still be rendered in their normal state
+    expect(screen.getByText("Laptop")).toBeInTheDocument();
+    expect(screen.getByText("Phone")).toBeInTheDocument();
+    expect(screen.getByText("Wallet")).toBeInTheDocument();
+  });
+
+  it("handles mixed swipes: partial then full on same card", () => {
+    const onDeleteItem = vi.fn();
+    renderItems({
+      checklist: {
+        id: "cl-mix",
+        name: "Mixed",
+        items: [
+          { id: "m-1", label: "Target", checked: false },
+        ],
+      },
+      onDeleteItem,
+    });
+
+    const [dragEnd] = (globalThis as any).__dragEndCallbacks;
+
+    // First: partial swipe (should not delete)
+    dragEnd({}, { offset: { x: -50 } });
+    expect(onDeleteItem).not.toHaveBeenCalled();
+
+    // Then: full swipe on same card (should delete)
+    dragEnd({}, { offset: { x: -200 } });
+    expect(onDeleteItem).toHaveBeenCalledWith("m-1");
+    expect(onDeleteItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("snaps card back to x=0 after partial swipe (dragSnapToOrigin)", async () => {
+    renderItems();
+
+    const handles = screen.getAllByLabelText("並び替え");
+    const callbacks = (globalThis as any).__dragEndCallbacks;
+
+    // Simulate a partial swipe on the first card (well under -180px threshold)
+    await act(async () => {
+      callbacks[0]({}, { offset: { x: -50 } });
+    });
+
+    // The card should have snapped back to origin (x=0) via dragSnapToOrigin
+    const swipeable = handles[0].closest("[data-test-x]");
+    expect(swipeable).not.toBeNull();
+    expect(swipeable?.getAttribute("data-test-x")).toBe("0");
   });
 });

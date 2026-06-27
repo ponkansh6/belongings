@@ -138,7 +138,7 @@ export default function ChecklistItems({
                       dragDirectionLock
                       dragConstraints={{ left: -250, right: 0 }}
                       dragElastic={{ left: 0.2, right: 0 }}
-                      animate={{ x: 0 }}
+                      dragSnapToOrigin
                       onDragEnd={(_event, info) => {
                         if (info.offset.x < -180) {
                           onDeleteItem(item.id);
