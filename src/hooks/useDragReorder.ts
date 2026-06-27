@@ -107,10 +107,7 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
         // When moving down (fromIndex < overIndex), the item's removal from the
         // array shifts all subsequent indices down by 1. Adjust so the insertion
         // point matches the visual indicator (borderTop on the overIndex item).
-        const toIndex =
-          state.fromIndex < state.overIndex
-            ? state.overIndex - 1
-            : state.overIndex;
+        const toIndex = state.fromIndex < state.overIndex ? state.overIndex - 1 : state.overIndex;
         if (state.fromIndex !== toIndex) {
           onReorderRef.current(state.fromIndex, toIndex);
         }

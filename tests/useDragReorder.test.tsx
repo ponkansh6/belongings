@@ -366,4 +366,61 @@ describe("useDragReorder", () => {
     expect(item0.style.opacity).not.toBe("0.3");
     expect(item0.style.opacity).toBe("1");
   });
+
+  it("places item at correct position when dragging downward (fromIndex < overIndex)", () => {
+    const { getByTestId } = render(<ReorderableList count={4} />);
+
+    // Initial order: [Item 0, Item 1, Item 2, Item 3]
+    const handle = getByTestId("handle-0");
+
+    // Long-press and drag item-0 down
+    fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+
+    // Move pointer to top half of item 3
+    // Items at y=0,40,80,120 with height 40; midpoints at 20,60,100,140
+    // clientY=110 → top half of item 3 → getIndexFromY returns 3 → overIndex=3
+    // Visual indicator: borderTop on item at index 3 (Item 3)
+    // → suggests "insert before Item 3" → between Item 2 and Item 3
+    fireEvent(document, pointerEvent("pointermove", { clientY: 110 }));
+
+    // End drag
+    fireEvent(document, pointerEvent("pointerup"));
+
+    // Verify the resulting order matches the visual indicator:
+    // Expected: [Item 1, Item 2, Item 0, Item 3]
+    // Old bug:  [Item 1, Item 2, Item 3, Item 0] (off by one — item 0 after item 3)
+    expect(getByTestId("item-0").textContent).toContain("Item 1");
+    expect(getByTestId("item-1").textContent).toContain("Item 2");
+    expect(getByTestId("item-2").textContent).toContain("Item 0");
+    expect(getByTestId("item-3").textContent).toContain("Item 3");
+  });
+
+  it("places item at correct position when dragging upward (overIndex < fromIndex)", () => {
+    const { getByTestId } = render(<ReorderableList count={4} />);
+
+    // Initial order: [Item 0, Item 1, Item 2, Item 3]
+    const handle = getByTestId("handle-3");
+
+    // Long-press and drag item-3 up
+    fireEvent(handle, pointerEvent("pointerdown", { clientY: 130, button: 0 }));
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+
+    // Move pointer to bottom half of item 0
+    // Items at y=0,40,80,120 with height 40; midpoints at 20,60,100,140
+    // clientY=30 → bottom half of item 0 (midpoint=20 < 30 < 40) → getIndexFromY returns 1
+    // Visual indicator: borderTop on item at index 1 (Item 1)
+    // → suggests "insert before Item 1" → between Item 0 and Item 1
+    fireEvent(document, pointerEvent("pointermove", { clientY: 30 }));
+
+    // End drag
+    fireEvent(document, pointerEvent("pointerup"));
+
+    // Verify the resulting order matches the visual indicator:
+    // Expected: [Item 0, Item 3, Item 1, Item 2]
+    expect(getByTestId("item-0").textContent).toContain("Item 0");
+    expect(getByTestId("item-1").textContent).toContain("Item 3");
+    expect(getByTestId("item-2").textContent).toContain("Item 1");
+    expect(getByTestId("item-3").textContent).toContain("Item 2");
+  });
 });
