@@ -116,8 +116,8 @@ describe("useDragReorder", () => {
     expect(handleNode.style.opacity).toBe("");
     expect(handleNode.style.transform).toBe("");
 
-    // Cross threshold: 9px total
-    fireEvent(document, pointerEvent("pointermove", { clientY: 1 }));
+    // Cross threshold: 16px total (new DRAG_THRESHOLD=15)
+    fireEvent(document, pointerEvent("pointermove", { clientY: -6 }));
     expect(handleNode.style.transform).toContain("translateY");
   });
 
