@@ -33,12 +33,14 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
   const getIndexFromY = useCallback((clientY: number): number => {
     const container = containerRef.current;
     if (!container) return 0;
-    const children = Array.from(container.children) as HTMLElement[];
+    const children = Array.from(container.children).filter(
+      (el) => !el.hasAttribute("data-drop-indicator"),
+    ) as HTMLElement[];
     for (let i = 0; i < children.length; i++) {
       const rect = children[i].getBoundingClientRect();
       if (clientY < rect.top + rect.height / 2) return i;
     }
-    return children.length - 1;
+    return children.length;
   }, []);
 
   const handlePointerDown = useCallback((index: number, e: React.PointerEvent) => {
@@ -149,7 +151,6 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
     if (index === fromIndex) {
       return {
         opacity: 0.3,
-        transition: "opacity 0.15s ease",
         zIndex: 10,
       };
     }

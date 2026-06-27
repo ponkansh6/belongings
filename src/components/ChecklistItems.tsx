@@ -25,7 +25,7 @@ export default function ChecklistItems({
   const [newItemLabel, setNewItemLabel] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { containerRef, handlePointerDown, getItemStyle, isDragging } =
+  const { containerRef, handlePointerDown, getItemStyle, isDragging, dragState } =
     useDragReorder(onReorderItems);
 
   // Focus input when switching lists
@@ -234,6 +234,14 @@ export default function ChecklistItems({
                 );
               })}
             </AnimatePresence>
+
+            {/* Bottom drop indicator when dragging below the last item */}
+            {dragState?.overIndex === checklist.items.length && (
+              <div
+                data-drop-indicator
+                className="h-0.5 rounded-full bg-blue-400 -mx-0.5"
+              />
+            )}
           </div>
 
           {/* Progress bar */}

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
+import { useState, act } from "react";
 import { useDragReorder, LONG_PRESS_DURATION } from "@/hooks/useDragReorder";
-import { act } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 /**
@@ -19,26 +19,76 @@ function TestList({
     useDragReorder(onReorder);
 
   return (
-    <div ref={containerRef} data-testid="container">
-      {Array.from({ length: count }, (_, i) => (
-        <div
-          key={i}
-          data-testid={`item-${i}`}
-          style={getItemStyle(i)}
-          className="item"
-        >
-          <button
-            type="button"
-            data-testid={`handle-${i}`}
-            onPointerDown={(e) => handlePointerDown(i, e)}
+    <>
+      <div ref={containerRef} data-testid="container">
+        {Array.from({ length: count }, (_, i) => (
+          <div
+            key={i}
+            data-testid={`item-${i}`}
+            style={getItemStyle(i)}
+            className="item"
           >
-            ≡
-          </button>
-          <span>Item {i}</span>
-        </div>
-      ))}
+            <button
+              type="button"
+              data-testid={`handle-${i}`}
+              onPointerDown={(e) => handlePointerDown(i, e)}
+            >
+              ≡
+            </button>
+            <span>Item {i}</span>
+          </div>
+        ))}
+      </div>
       <div data-testid="dragging">{isDragging ? "true" : "false"}</div>
-    </div>
+    </>
+  );
+}
+
+/**
+ * A test component that managers items with parent state (useState),
+ * simulating the real app's reorder → setChecklists → re-render flow.
+ */
+function ReorderableList({ count }: { count: number }) {
+  const [items, setItems] = useState(
+    Array.from({ length: count }, (_, i) => ({ id: `item-${i}`, label: `Item ${i}` })),
+  );
+
+  const { containerRef, handlePointerDown, getItemStyle, isDragging, dragState } =
+    useDragReorder((from, to) => {
+      setItems((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        return next;
+      });
+    });
+
+  return (
+    <>
+      <div ref={containerRef} data-testid="container">
+        {items.map((item, i) => (
+          <div
+            key={item.id}
+            data-testid={`item-${i}`}
+            style={getItemStyle(i)}
+            className="item"
+          >
+            <button
+              type="button"
+              data-testid={`handle-${i}`}
+              onPointerDown={(e) => handlePointerDown(i, e)}
+            >
+              ≡
+            </button>
+            <span>{item.label}</span>
+          </div>
+        ))}
+        {dragState?.overIndex === items.length && (
+          <div data-testid="bottom-indicator" data-drop-indicator className="h-0.5" />
+        )}
+      </div>
+      <div data-testid="dragging">{isDragging ? "true" : "false"}</div>
+    </>
   );
 }
 
@@ -231,5 +281,87 @@ describe("useDragReorder", () => {
     fireEvent(document, pointerEvent("pointercancel"));
 
     expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it("restores full opacity when drag returns to original position and ends", () => {
+    const onReorder = vi.fn();
+    const { getByTestId } = render(<TestList count={3} onReorder={onReorder} />);
+
+    const handle = getByTestId("handle-0");
+    const item0 = handle.closest('[data-testid^="item-"]')!;
+
+    // Long-press handle-0
+    fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+
+    // Move to overIndex=1
+    fireEvent(document, pointerEvent("pointermove", { clientY: 50 }));
+
+    // Return to original position (overIndex=0, fromIndex=0)
+    fireEvent(document, pointerEvent("pointermove", { clientY: 10 }));
+
+    // End drag
+    fireEvent(document, pointerEvent("pointerup"));
+
+    // After flush, opacity should be restored to normal
+    expect(item0.style.opacity).not.toBe("0.3");
+    expect(item0.style.opacity).toBe("");
+  });
+
+  it("restores full opacity after a reorder completes", () => {
+    const onReorder = vi.fn();
+    const { getByTestId } = render(<TestList count={3} onReorder={onReorder} />);
+
+    const handle = getByTestId("handle-0");
+    const item0 = handle.closest('[data-testid^="item-"]')!;
+
+    // Long-press and drag
+    fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+    fireEvent(document, pointerEvent("pointermove", { clientY: 50 }));
+
+    // End drag (triggers onReorder)
+    fireEvent(document, pointerEvent("pointerup"));
+
+    // After reorder, opacity should be restored
+    expect(item0.style.opacity).not.toBe("0.3");
+    expect(item0.style.opacity).toBe("");
+  });
+
+  it("shows bottom indicator when dragging below the last item", () => {
+    const { getByTestId } = render(<ReorderableList count={4} />);
+
+    // Drag item 0 to bottom (overIndex=4, beyond last item)
+    const handle = getByTestId("handle-0");
+    fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+
+    // Move to below last item's midpoint
+    // 4 items at y=0,40,80,120 with height=40; midpoints at 20,60,100,140
+    // clientY=150 → below all midpoints → getIndexFromY returns 4 (items.length)
+    fireEvent(document, pointerEvent("pointermove", { clientY: 150 }));
+
+    // Bottom indicator element should appear (no item gets borderTop)
+    expect(getByTestId("bottom-indicator")).toBeInTheDocument();
+  });
+
+  it("restores full opacity after reorder triggers parent state update", () => {
+    const { getByTestId } = render(<ReorderableList count={3} />);
+
+    // Get the handle for item-0
+    const handle = getByTestId("handle-0");
+    const item0 = handle.closest('[data-testid^="item-"]') as HTMLElement;
+
+    // Long-press and drag item-0 to position 1
+    fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
+    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+    fireEvent(document, pointerEvent("pointermove", { clientY: 50 }));
+
+    // End drag → triggers onReorder → setItems updates state → re-render
+    fireEvent(document, pointerEvent("pointerup"));
+
+    // After parent re-render, opacity should be restored
+    expect(item0.style.opacity).not.toBe("0.3");
+    expect(item0.style.opacity).toBe("");
   });
 });
