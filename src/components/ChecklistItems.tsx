@@ -137,7 +137,7 @@ export default function ChecklistItems({
                       drag="x"
                       dragDirectionLock
                       dragConstraints={{ left: -250, right: 0 }}
-                      dragElastic={{ left: 0.2, right: 0 }}
+                      dragElastic={{ left: 0.05, right: 0 }}
                       dragSnapToOrigin
                       onDragEnd={(_event, info) => {
                         if (info.offset.x < -180) {
@@ -237,10 +237,7 @@ export default function ChecklistItems({
 
             {/* Bottom drop indicator when dragging below the last item */}
             {dragState?.overIndex === checklist.items.length && (
-              <div
-                data-drop-indicator
-                className="h-0.5 rounded-full bg-blue-400 -mx-0.5"
-              />
+              <div data-drop-indicator className="h-0.5 rounded-full bg-blue-400 -mx-0.5" />
             )}
           </div>
 
