@@ -15,7 +15,8 @@ interface DragState {
   active: boolean;
 }
 
-const DRAG_THRESHOLD = 8; // px of movement before drag activates
+const DRAG_THRESHOLD = 15; // px of movement before drag activates
+const DRAG_RESISTANCE = 0.5; // multiplier for drag tracking (lower = heavier)
 
 /**
  * Custom hook for drag-and-drop reordering.
@@ -70,7 +71,8 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
       if (!state.active) {
         if (dy < DRAG_THRESHOLD) return;
         // Crossed threshold — activate drag
-        const overIndex = getIndexFromY(e.clientY);
+        const visualY = state.startY + (e.clientY - state.startY) * DRAG_RESISTANCE;
+        const overIndex = getIndexFromY(visualY);
         dragRef.current = { ...state, active: true, currentY: e.clientY, overIndex };
         setDragState(dragRef.current!);
         return;
@@ -78,7 +80,8 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
 
       e.preventDefault();
 
-      const overIndex = getIndexFromY(e.clientY);
+      const visualY = state.startY + (e.clientY - state.startY) * DRAG_RESISTANCE;
+      const overIndex = getIndexFromY(visualY);
       if (overIndex !== state.overIndex || e.clientY !== state.currentY) {
         const next = { ...state, currentY: e.clientY, overIndex };
         dragRef.current = next;
@@ -134,7 +137,7 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
     if (index === fromIndex) {
       return {
         opacity: 0.3,
-        transform: `translateY(${currentY - startY}px)`,
+        transform: `translateY(${(currentY - startY) * DRAG_RESISTANCE}px)`,
         transition: "opacity 0.15s ease",
         position: "relative",
         zIndex: 10,

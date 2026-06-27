@@ -136,10 +136,10 @@ export default function ChecklistItems({
                     <motion.div
                       drag="x"
                       dragDirectionLock
-                      dragConstraints={{ left: -200, right: 0 }}
-                      dragElastic={{ left: 0.3, right: 0 }}
+                      dragConstraints={{ left: -250, right: 0 }}
+                      dragElastic={{ left: 0.2, right: 0 }}
                       onDragEnd={(_event, info) => {
-                        if (info.offset.x < -100) {
+                        if (info.offset.x < -180) {
                           onDeleteItem(item.id);
                         }
                       }}
