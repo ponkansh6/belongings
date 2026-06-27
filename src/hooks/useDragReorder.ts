@@ -104,7 +104,16 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
       const state = dragRef.current;
       if (!state) return;
       if (state.active && state.fromIndex !== state.overIndex) {
-        onReorderRef.current(state.fromIndex, state.overIndex);
+        // When moving down (fromIndex < overIndex), the item's removal from the
+        // array shifts all subsequent indices down by 1. Adjust so the insertion
+        // point matches the visual indicator (borderTop on the overIndex item).
+        const toIndex =
+          state.fromIndex < state.overIndex
+            ? state.overIndex - 1
+            : state.overIndex;
+        if (state.fromIndex !== toIndex) {
+          onReorderRef.current(state.fromIndex, toIndex);
+        }
       }
       dragRef.current = null;
       setDragState(null);
@@ -140,29 +149,32 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
   }, [getIndexFromY]);
 
   /** Returns CSSProperties for an item at the given index during a drag */
-  const getItemStyle = useCallback((index: number): React.CSSProperties => {
-    if (!dragState || !dragState.active) return { opacity: 1 };
+  const getItemStyle = useCallback(
+    (index: number): React.CSSProperties => {
+      if (!dragState || !dragState.active) return { opacity: 1 };
 
-    const { fromIndex, overIndex } = dragState;
+      const { fromIndex, overIndex } = dragState;
 
-    // Dim the dragged item — no pointer-tracking animation
-    if (index === fromIndex) {
-      return {
-        opacity: 0.3,
-        zIndex: 10,
-      };
-    }
+      // Dim the dragged item — no pointer-tracking animation
+      if (index === fromIndex) {
+        return {
+          opacity: 0.3,
+          zIndex: 10,
+        };
+      }
 
-    // Show drop indicator (blue line) at the insertion point
-    if (overIndex !== fromIndex && index === overIndex) {
-      return {
-        borderTop: "2px solid #3b82f6",
-        opacity: 1,
-      };
-    }
+      // Show drop indicator (blue line) at the insertion point
+      if (overIndex !== fromIndex && index === overIndex) {
+        return {
+          borderTop: "2px solid #3b82f6",
+          opacity: 1,
+        };
+      }
 
-    return { opacity: 1 };
-  }, [dragState]);
+      return { opacity: 1 };
+    },
+    [dragState],
+  );
 
   return {
     dragState,

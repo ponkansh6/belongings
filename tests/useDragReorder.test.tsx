@@ -199,9 +199,9 @@ describe("useDragReorder", () => {
       vi.advanceTimersByTime(LONG_PRESS_DURATION);
     });
 
-    // Move down (items at y=0,40,80; midpoint of item 1 at y=60)
-    // clientY=50 → dy=40 → 1:1 tracking → overIndex=1
-    fireEvent(document, pointerEvent("pointermove", { clientY: 50 }));
+    // Move down (items at y=0,40,80; midpoints at 20,60,100)
+    // clientY=70 → overIndex=2 (top half of item 2) → toIndex=1
+    fireEvent(document, pointerEvent("pointermove", { clientY: 70 }));
     fireEvent(document, pointerEvent("pointerup"));
 
     expect(onReorder).toHaveBeenCalledWith(0, 1);
@@ -318,7 +318,8 @@ describe("useDragReorder", () => {
     // Long-press and drag
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
     act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
-    fireEvent(document, pointerEvent("pointermove", { clientY: 50 }));
+    // clientY=70 → overIndex=2 (top half of item 2) → toIndex=1
+    fireEvent(document, pointerEvent("pointermove", { clientY: 70 }));
 
     // End drag (triggers onReorder)
     fireEvent(document, pointerEvent("pointerup"));
@@ -355,7 +356,8 @@ describe("useDragReorder", () => {
     // Long-press and drag item-0 to position 1
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
     act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
-    fireEvent(document, pointerEvent("pointermove", { clientY: 50 }));
+    // clientY=70 → overIndex=2 (top half of item 2) → toIndex=1
+    fireEvent(document, pointerEvent("pointermove", { clientY: 70 }));
 
     // End drag → triggers onReorder → setItems updates state → re-render
     fireEvent(document, pointerEvent("pointerup"));
