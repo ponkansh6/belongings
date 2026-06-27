@@ -126,9 +126,15 @@ describe("useDragReorder", () => {
     // Now active: opacity should be set even before any move
     expect(handleNode.style.opacity).toBe("0.3");
 
-    // After activation, move should show 1:1 tracking
+    // Dragged item does NOT track pointer (no translateY)
     fireEvent(document, pointerEvent("pointermove", { clientY: 30 }));
-    expect(handleNode.style.transform).toContain("translateY(20px)"); // 1:1 from y=10
+    expect(handleNode.style.transform).toBe("");
+
+    // Target item shows drop indicator (borderTop)
+    // Items are at y=0,40,80 with height=40.
+    // clientY=30 → midpoint of item 0 (20) < 30 < midpoint of item 1 (60) → overIndex=1
+    const targetNode = getByTestId("item-1");
+    expect(targetNode.style.borderTop).toBe("2px solid #3b82f6");
   });
 
   it("calls onReorder when an item is long-pressed and dragged", () => {

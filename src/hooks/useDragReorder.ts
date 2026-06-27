@@ -15,7 +15,7 @@ interface DragState {
   active: boolean;
 }
 
-export const LONG_PRESS_DURATION = 150; // ms to hold before drag activates
+export const LONG_PRESS_DURATION = 250; // ms to hold before drag activates
 
 /**
  * Custom hook for drag-and-drop reordering.
@@ -143,31 +143,25 @@ export function useDragReorder(onReorder: (fromIndex: number, toIndex: number) =
     const state = dragRef.current;
     if (!state || !state.active) return {};
 
-    const { fromIndex, overIndex, startY, currentY, itemHeight } = state;
+    const { fromIndex, overIndex } = state;
 
+    // Dim the dragged item — no pointer-tracking animation
     if (index === fromIndex) {
       return {
         opacity: 0.3,
-        transform: `translateY(${currentY - startY}px)`,
         transition: "opacity 0.15s ease",
-        position: "relative",
         zIndex: 10,
       };
     }
 
-    let shiftY = 0;
-    if (fromIndex < overIndex && index > fromIndex && index <= overIndex) {
-      shiftY = -itemHeight;
-    } else if (fromIndex > overIndex && index >= overIndex && index < fromIndex) {
-      shiftY = itemHeight;
+    // Show drop indicator (blue line) at the insertion point
+    if (overIndex !== fromIndex && index === overIndex) {
+      return {
+        borderTop: "2px solid #3b82f6",
+      };
     }
 
-    const base: React.CSSProperties = {};
-    if (shiftY !== 0) {
-      base.transform = `translateY(${shiftY}px)`;
-      base.transition = "transform 0.2s ease";
-    }
-    return base;
+    return {};
   }, []);
 
   return {
