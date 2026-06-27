@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Checklist } from "@/lib/types";
 import { useDragReorder } from "@/hooks/useDragReorder";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface ChecklistItemsProps {
   checklist: Checklist;
@@ -48,6 +49,7 @@ export default function ChecklistItems({
 
   const [showCelebration, setShowCelebration] = useState(false);
   const prevAllCheckedRef = useRef(allChecked);
+  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   // Detect 100% completion and show celebration briefly
   useEffect(() => {
@@ -264,31 +266,53 @@ export default function ChecklistItems({
             />
           </div>
 
-          {/* 100% celebration banner */}
+          {/* 100% celebration overlay */}
           <AnimatePresence>
             {showCelebration && (
               <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700"
+                initial={false}
+                animate={{
+                  opacity: 1,
+                  scale: prefersReducedMotion ? 1 : [0.9, 1.02, 1],
+                }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{
+                  duration: prefersReducedMotion ? 0 : 0.45,
+                  ease: "easeOut",
+                  scale: { type: "spring", stiffness: 260, damping: 20 },
+                }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm"
                 role="status"
                 aria-live="polite"
+                onClick={() => setShowCelebration(false)}
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, duration: 0.3, ease: "easeOut" }}
+                  className="text-center"
                 >
-                  <polyline points="3 8 7 12 13 4" />
-                </svg>
-                すべて完了！
+                  <svg
+                    width="72"
+                    height="72"
+                    viewBox="0 0 72 72"
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mx-auto mb-3"
+                  >
+                    <circle cx="36" cy="36" r="32" />
+                    <polyline points="20 36 32 48 52 24" />
+                  </svg>
+                  <p className="text-2xl font-semibold text-stone-800">
+                    行ってらっしゃい！
+                  </p>
+                  <p className="mt-1 text-sm text-stone-500">
+                    準備完了。よい旅を。
+                  </p>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
