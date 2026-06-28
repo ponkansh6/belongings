@@ -4,7 +4,6 @@ import { useChecklists } from "@/hooks/useChecklists";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import ChecklistItems from "@/components/ChecklistItems";
-import AllChecklistsView from "@/components/AllChecklistsView";
 
 export default function Home() {
   const {
@@ -58,23 +57,12 @@ export default function Home() {
             }
           }}
           onReorder={reorderChecklists}
-          onSelectAll={() => setActiveView({ type: "all" })}
         />
 
         {/* Main content */}
         <main className="min-h-0">
-          {activeView.type === "all" ? (
-            <div className="flex h-full flex-col rounded-2xl border border-stone-200 bg-white p-4 shadow-sm md:p-6">
-              <AllChecklistsView
-                checklists={checklists}
-                onToggle={(checklistId, itemId) => toggleItem(checklistId, itemId)}
-                onAddItem={(checklistId, label) => addItem(checklistId, label)}
-                onDeleteItem={(checklistId, itemId) => deleteItem(checklistId, itemId)}
-                onReset={(checklistId) => resetList(checklistId)}
-              />
-            </div>
-          ) : selectedChecklist ? (
-            <div className="flex h-full flex-col rounded-2xl border border-stone-200 bg-white p-4 shadow-sm md:p-6">
+          {selectedChecklist ? (
+            <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm md:p-6">
               <ChecklistItems
                 checklist={selectedChecklist}
                 onToggle={(itemId) => toggleItem(selectedChecklist.id, itemId)}

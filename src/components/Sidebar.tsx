@@ -9,7 +9,6 @@ interface SidebarProps {
   checklists: Checklist[];
   activeView: ActiveView;
   onSelect: (id: string) => void;
-  onSelectAll: () => void;
   onAdd: (name: string) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
@@ -20,7 +19,6 @@ export default function Sidebar({
   checklists,
   activeView,
   onSelect,
-  onSelectAll,
   onAdd,
   onRename,
   onDelete,
@@ -35,19 +33,6 @@ export default function Sidebar({
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const { containerRef, handlePointerDown, getItemStyle, isDragging } = useDragReorder(onReorder);
-
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem("belongings-collapsed");
-      return saved ? new Set(JSON.parse(saved)) : new Set<string>();
-    } catch {
-      return new Set<string>();
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("belongings-collapsed", JSON.stringify([...collapsedIds]));
-  }, [collapsedIds]);
 
   useEffect(() => {
     if (showNewInput) newInputRef.current?.focus();
@@ -91,15 +76,6 @@ export default function Sidebar({
     setNewName("");
   }, []);
 
-  const toggleCollapse = useCallback((id: string) => {
-    setCollapsedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
   const totalItems = checklists.reduce((acc, cl) => acc + cl.items.length, 0);
   const checkedItems = checklists.reduce(
     (acc, cl) => acc + cl.items.filter((i) => i.checked).length,
@@ -107,7 +83,7 @@ export default function Sidebar({
   );
 
   return (
-    <aside className="flex flex-col gap-3 h-full">
+    <aside className="flex flex-col gap-3">
       {/* Section header */}
       <div className="flex items-center justify-between px-1">
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-stone-400">
@@ -163,265 +139,185 @@ export default function Sidebar({
         <>
           {/* Checklist list */}
           {checklists.length > 0 ? (
-            <div className="flex-1 overflow-y-auto min-h-0">
-              <div ref={containerRef} className="flex flex-col gap-0.5">
-                {/* "Show All" option */}
-                <div
-                  className={`flex items-center gap-0.5 rounded-xl px-1 transition-colors ${
-                    activeView.type === "all" ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-stone-100"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={onSelectAll}
-                    className="flex h-10 min-w-0 flex-1 items-center gap-2 px-1.5 text-left text-sm font-medium text-stone-700 transition-colors hover:text-stone-900"
+            <div ref={containerRef} className="flex flex-col gap-0.5">
+              {checklists.map((cl, index) => {
+                const isActive = activeView.type === "list" && activeView.checklistId === cl.id;
+                const isEditing = editingId === cl.id;
+                const itemStyle = getItemStyle(index);
+                const checkedCount = cl.items.filter((i) => i.checked).length;
+
+                return (
+                  <div
+                    key={cl.id}
+                    style={itemStyle}
+                    aria-grabbed={isDragging}
+                    className={`group flex items-center gap-0.5 rounded-xl px-1 transition-colors ${
+                      isActive ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-stone-100"
+                    }`}
                   >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 14 14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="shrink-0 text-stone-400"
+                    {/* Drag handle */}
+                    <button
+                      type="button"
+                      onPointerDown={(e) => handlePointerDown(index, e)}
+                      className="flex h-10 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-stone-400 transition-colors hover:text-stone-600 active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                      aria-label="並び替え"
+                      tabIndex={0}
                     >
-                      <rect x="1.5" y="2.5" width="11" height="9" rx="1.5" />
-                      <line x1="1.5" y1="5.5" x2="12.5" y2="5.5" />
-                      <line x1="5" y1="2.5" x2="5" y2="11.5" />
-                      <line x1="9" y1="2.5" x2="9" y2="11.5" />
-                    </svg>
-                    すべて表示
-                  </button>
-                  {checklists.length > 0 && (
-                    <span className="mr-2 shrink-0 text-[11px] tabular-nums text-stone-400">
-                      {checkedItems}/{totalItems}
-                    </span>
-                  )}
-                </div>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      >
+                        <line x1="4" y1="3.5" x2="10" y2="3.5" />
+                        <line x1="4" y1="7" x2="10" y2="7" />
+                        <line x1="4" y1="10.5" x2="10" y2="10.5" />
+                      </svg>
+                    </button>
 
-                {/* Divider */}
-                <div className="mx-1 border-t border-stone-200" />
-
-                {checklists.map((cl, index) => {
-                  const isActive = activeView.type === "list" && activeView.checklistId === cl.id;
-                  const isEditing = editingId === cl.id;
-                  const itemStyle = getItemStyle(index);
-                  const checkedCount = cl.items.filter((i) => i.checked).length;
-
-                  return (
-                    <div
-                      key={cl.id}
-                      style={itemStyle}
-                      aria-grabbed={isDragging}
-                      className={`group flex items-center gap-0.5 rounded-xl px-1 transition-colors ${
-                        isActive ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-stone-100"
-                      }`}
-                    >
-                      {/* Collapse toggle chevron */}
+                    {/* Name / Edit input */}
+                    {isEditing ? (
+                      <input
+                        ref={editInputRef}
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleEditSubmit(cl.id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        onBlur={() => handleEditSubmit(cl.id)}
+                        className="h-8 flex-1 rounded-lg border border-stone-300 bg-white px-2 text-sm outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                        aria-label="リスト名を編集"
+                      />
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => toggleCollapse(cl.id)}
-                        className="flex h-10 w-6 shrink-0 items-center justify-center rounded-lg text-stone-400 transition-colors hover:text-stone-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                        aria-label={collapsedIds.has(cl.id) ? "展開" : "折りたたみ"}
+                        onClick={() => onSelect(cl.id)}
+                        className="flex h-10 min-w-0 flex-1 items-center gap-2 truncate px-1.5 text-left text-sm font-medium text-stone-700 transition-colors hover:text-stone-900"
                       >
-                        <svg
-                          width="10"
-                          height="10"
-                          viewBox="0 0 10 10"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className={`transition-transform ${collapsedIds.has(cl.id) ? "-rotate-90" : ""}`}
-                        >
-                          <path d="M3 2L6 5L3 8" />
-                        </svg>
+                        <span className="truncate">{cl.name}</span>
+                        {cl.items.length > 0 && (
+                          <span className="ml-auto shrink-0 text-[11px] tabular-nums text-stone-400">
+                            {checkedCount}/{cl.items.length}
+                          </span>
+                        )}
                       </button>
+                    )}
 
-                      {/* Content — conditionally shown/hidden */}
-                      {collapsedIds.has(cl.id) ? (
-                        /* Collapsed: only show name in minimal form */
+                    {/* Action buttons */}
+                    {!isEditing && (
+                      <div className="flex shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 md:opacity-0 md:group-hover:opacity-100">
                         <button
                           type="button"
-                          onClick={() => onSelect(cl.id)}
-                          className="flex h-8 min-w-0 flex-1 items-center truncate px-1 text-left text-sm font-medium text-stone-500 transition-colors hover:text-stone-900"
-                        >
-                          <span className="truncate">{cl.name}</span>
-                        </button>
-                      ) : (
-                        /* Expanded: full row (existing code) */
-                        <>
-                      {/* Drag handle */}
-                      <button
-                        type="button"
-                        onPointerDown={(e) => handlePointerDown(index, e)}
-                        className="flex h-10 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-stone-400 transition-colors hover:text-stone-600 active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                        aria-label="並び替え"
-                        tabIndex={0}
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 14 14"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                        >
-                          <line x1="4" y1="3.5" x2="10" y2="3.5" />
-                          <line x1="4" y1="7" x2="10" y2="7" />
-                          <line x1="4" y1="10.5" x2="10" y2="10.5" />
-                        </svg>
-                      </button>
-
-                      {/* Name / Edit input */}
-                      {isEditing ? (
-                        <input
-                          ref={editInputRef}
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleEditSubmit(cl.id);
-                            if (e.key === "Escape") setEditingId(null);
+                          onClick={() => {
+                            setEditingId(cl.id);
+                            setEditingName(cl.name);
                           }}
-                          onBlur={() => handleEditSubmit(cl.id)}
-                          className="h-8 flex-1 rounded-lg border border-stone-300 bg-white px-2 text-sm outline-none transition-colors focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                          aria-label="リスト名を編集"
-                        />
-                      ) : (
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-200 hover:text-stone-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                          aria-label="名前を変更"
+                        >
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 13 13"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M9.5 1.5L11.5 3.5L4.5 10.5L1.5 11.5L2.5 8.5L9.5 1.5Z" />
+                          </svg>
+                        </button>
                         <button
                           type="button"
-                          onClick={() => onSelect(cl.id)}
-                          className="flex h-10 min-w-0 flex-1 items-center gap-2 truncate px-1.5 text-left text-sm font-medium text-stone-700 transition-colors hover:text-stone-900"
+                          onClick={() => handleDelete(cl.name, cl.id)}
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-red-100 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                          aria-label="削除"
                         >
-                          <span className="truncate">{cl.name}</span>
-                          {cl.items.length > 0 && (
-                            <span className="ml-auto shrink-0 text-[11px] tabular-nums text-stone-400">
-                              {checkedCount}/{cl.items.length}
-                            </span>
-                          )}
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 13 13"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          >
+                            <line x1="2.5" y1="2.5" x2="10.5" y2="10.5" />
+                            <line x1="10.5" y1="2.5" x2="2.5" y2="10.5" />
+                          </svg>
                         </button>
-                      )}
-
-                      {/* Action buttons */}
-                      {!isEditing && (
-                        <div className="flex shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 md:opacity-0 md:group-hover:opacity-100">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingId(cl.id);
-                              setEditingName(cl.name);
-                            }}
-                            className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-200 hover:text-stone-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                            aria-label="名前を変更"
-                          >
-                            <svg
-                              width="13"
-                              height="13"
-                              viewBox="0 0 13 13"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M9.5 1.5L11.5 3.5L4.5 10.5L1.5 11.5L2.5 8.5L9.5 1.5Z" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(cl.name, cl.id)}
-                            className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-red-100 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-                            aria-label="削除"
-                          >
-                            <svg
-                              width="13"
-                              height="13"
-                              viewBox="0 0 13 13"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                            >
-                              <line x1="2.5" y1="2.5" x2="10.5" y2="10.5" />
-                              <line x1="10.5" y1="2.5" x2="2.5" y2="10.5" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : null}
         </>
       )}
 
       {/* New checklist input / button */}
-      <div className="sticky bottom-0 bg-stone-50/90 backdrop-blur-sm pt-3 mt-auto">
-        {showNewInput ? (
-          <div className="flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 shadow-sm">
-            <input
-              ref={newInputRef}
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleNewSubmit();
-                if (e.key === "Escape") handleCancelNew();
-              }}
-              onBlur={() => {
-                if (!newName.trim()) handleCancelNew();
-              }}
-              placeholder="リスト名を入力..."
-              className="h-8 flex-1 text-sm outline-none placeholder:text-stone-400"
-              aria-label="新しいリスト名"
-            />
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={handleCancelNew}
-                className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-colors hover:bg-stone-100"
-              >
-                キャンセル
-              </button>
-              <button
-                type="button"
-                onClick={handleNewSubmit}
-                disabled={!newName.trim()}
-                className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-blue-600 active:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-500"
-              >
-                作成
-              </button>
-            </div>
-          </div>
-        ) : checklists.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => setShowNewInput(true)}
-            className="flex items-center gap-2 rounded-xl border-2 border-dashed border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-500 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 active:bg-blue-100"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
+      {showNewInput ? (
+        <div className="flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 shadow-sm">
+          <input
+            ref={newInputRef}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleNewSubmit();
+              if (e.key === "Escape") handleCancelNew();
+            }}
+            onBlur={() => {
+              if (!newName.trim()) handleCancelNew();
+            }}
+            placeholder="リスト名を入力..."
+            className="h-8 flex-1 text-sm outline-none placeholder:text-stone-400"
+            aria-label="新しいリスト名"
+          />
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={handleCancelNew}
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-colors hover:bg-stone-100"
             >
-              <line x1="7" y1="2" x2="7" y2="12" />
-              <line x1="2" y1="7" x2="12" y2="7" />
-            </svg>
-            新規リスト
-          </button>
-        ) : null}
-      </div>
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={handleNewSubmit}
+              disabled={!newName.trim()}
+              className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-blue-600 active:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-500"
+            >
+              作成
+            </button>
+          </div>
+        </div>
+      ) : checklists.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowNewInput(true)}
+          className="flex items-center gap-2 rounded-xl border-2 border-dashed border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-500 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 active:bg-blue-100"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <line x1="7" y1="2" x2="7" y2="12" />
+            <line x1="2" y1="7" x2="12" y2="7" />
+          </svg>
+          新規リスト
+        </button>
+      ) : null}
     </aside>
   );
 }

@@ -71,7 +71,7 @@ export default function ChecklistItems({
   }, [allChecked]);
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex flex-col gap-4">
       {/* Header area */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -128,9 +128,9 @@ export default function ChecklistItems({
           <p className="text-xs text-stone-400">以下の入力欄から追加してください</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto min-h-0 -mx-1 px-1">
+        <>
           {/* Items list */}
-          <div ref={containerRef} className="flex flex-col gap-0.5">
+          <div ref={containerRef} className="-mx-1 flex flex-col gap-0.5">
             <AnimatePresence initial={false}>
               {checklist.items.map((item, index) => {
                 const itemStyle = getItemStyle(index);
@@ -299,7 +299,7 @@ export default function ChecklistItems({
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </>
       )}
 
       {/* Add item input */}
