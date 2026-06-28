@@ -344,4 +344,48 @@ describe("ChecklistItems", () => {
       expect(swipeable?.getAttribute("data-test-x")).toBe("0");
     });
   });
+
+  describe("auto-focus behavior", () => {
+    it("focuses the input when checklist is empty (ケース1)", () => {
+      renderItems({ checklist: emptyChecklist });
+      expect(screen.getByPlaceholderText("アイテムを追加...")).toHaveFocus();
+    });
+
+    it("does not focus the input when checklist has items", () => {
+      renderItems({ checklist: sampleChecklist });
+      expect(screen.getByPlaceholderText("アイテムを追加...")).not.toHaveFocus();
+    });
+
+    it("focuses input when switching from non-empty to empty checklist", () => {
+      const { rerender } = renderItems({ checklist: sampleChecklist });
+      const input = screen.getByPlaceholderText("アイテムを追加...");
+      expect(input).not.toHaveFocus();
+
+      rerender(
+        <ChecklistItems
+          checklist={emptyChecklist}
+          onToggle={vi.fn()}
+          onAddItem={vi.fn()}
+          onDeleteItem={vi.fn()}
+          onReorderItems={vi.fn()}
+          onReset={vi.fn()}
+        />,
+      );
+      expect(input).toHaveFocus();
+    });
+
+    it("re-focuses input after adding an item for continuous input (ケース2)", () => {
+      const onAddItem = vi.fn();
+      renderItems({ checklist: emptyChecklist, onAddItem });
+      const input = screen.getByPlaceholderText("アイテムを追加...");
+      expect(input).toHaveFocus();
+
+      fireEvent.change(input, { target: { value: "New Item" } });
+      fireEvent.click(screen.getByText("追加"));
+
+      // handleAddSubmit calls focus() after onAddItem → input stays focused
+      expect(onAddItem).toHaveBeenCalledWith("New Item");
+      expect(input).toHaveFocus();
+    });
+  });
 });

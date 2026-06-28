@@ -25,21 +25,30 @@ export default function ChecklistItems({
 }: ChecklistItemsProps) {
   const [newItemLabel, setNewItemLabel] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const isEmpty = checklist.items.length === 0;
 
   const { containerRef, handlePointerDown, getItemStyle, dragState } =
     useDragReorder(onReorderItems);
 
-  // Focus input when switching lists
+  // 自動フォーカスは以下の2ケースに限定:
+  //   ケース1: リスト内のアイテムが0件のとき
+  //   ケース2: アイテム追加直後（連続追加用）
+  // それ以外（アイテムが存在するリストの選択、チェック/解除、リセット等）ではフォーカスしない
+
+  // ケース1: リストが空のときだけinputにフォーカス
+  // 発火条件: 別リストに切り替えた、またはアイテムが0件になった（最後の1件削除など）
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [checklist.id]);
+    if (isEmpty) {
+      inputRef.current?.focus();
+    }
+  }, [checklist.id, isEmpty]);
 
   const handleAddSubmit = useCallback(() => {
     const trimmed = newItemLabel.trim();
     if (trimmed) {
       onAddItem(trimmed);
       setNewItemLabel("");
-      // Re-focus the input for adding more items
+      // ケース2: アイテム追加直後にリフォーカス（連続追加用）
       inputRef.current?.focus();
     }
   }, [newItemLabel, onAddItem]);
