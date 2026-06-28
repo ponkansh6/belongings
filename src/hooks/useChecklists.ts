@@ -120,6 +120,19 @@ export function useChecklists() {
     );
   }, []);
 
+  // --- Selection (moves selected to top) ---
+  const selectChecklist = useCallback((id: string) => {
+    setChecklists((prev) => {
+      const idx = prev.findIndex((cl) => cl.id === id);
+      if (idx <= 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(idx, 1);
+      next.unshift(moved);
+      return next;
+    });
+    setActiveView({ type: "list", checklistId: id });
+  }, []);
+
   // --- Derived ---
   const selectedChecklist =
     activeView.type === "list"
@@ -131,6 +144,7 @@ export function useChecklists() {
     loaded,
     activeView,
     setActiveView,
+    selectChecklist,
     selectedChecklist,
     addChecklist,
     renameChecklist,

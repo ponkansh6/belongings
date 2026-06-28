@@ -12,6 +12,7 @@ export default function Home() {
     activeView,
     setActiveView,
     selectedChecklist,
+    selectChecklist,
     addChecklist,
     renameChecklist,
     deleteChecklist,
@@ -44,10 +45,10 @@ export default function Home() {
         <Sidebar
           checklists={checklists}
           activeView={activeView}
-          onSelect={(id) => setActiveView({ type: "list", checklistId: id })}
+          onSelect={(id) => selectChecklist(id)}
           onAdd={(name) => {
             const newId = addChecklist(name);
-            setActiveView({ type: "list", checklistId: newId });
+            selectChecklist(newId);
           }}
           onRename={renameChecklist}
           onDelete={(id) => {
