@@ -16,7 +16,6 @@ export default function Home() {
     addChecklist,
     renameChecklist,
     deleteChecklist,
-    reorderChecklists,
     addItem,
     toggleItem,
     deleteItem,
@@ -57,7 +56,6 @@ export default function Home() {
               setActiveView({ type: "all" });
             }
           }}
-          onReorder={reorderChecklists}
         />
 
         {/* Main content */}

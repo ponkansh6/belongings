@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { Checklist } from "@/lib/types";
 import type { ActiveView } from "@/hooks/useChecklists";
-import { useDragReorder } from "@/hooks/useDragReorder";
 
 interface SidebarProps {
   checklists: Checklist[];
@@ -12,7 +11,6 @@ interface SidebarProps {
   onAdd: (name: string) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
-  onReorder: (fromIndex: number, toIndex: number) => void;
 }
 
 export default function Sidebar({
@@ -22,7 +20,6 @@ export default function Sidebar({
   onAdd,
   onRename,
   onDelete,
-  onReorder,
 }: SidebarProps) {
   const [showNewInput, setShowNewInput] = useState(false);
   const [newName, setNewName] = useState("");
@@ -33,8 +30,6 @@ export default function Sidebar({
 
   const newInputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-
-  const { containerRef, handlePointerDown, getItemStyle, isDragging } = useDragReorder(onReorder);
 
   useEffect(() => {
     if (showNewInput) newInputRef.current?.focus();
@@ -144,45 +139,19 @@ export default function Sidebar({
         <>
           {/* Checklist list */}
           {checklists.length > 0 ? (
-            <div ref={containerRef} className="flex flex-col gap-0.5">
-              {visibleLists.map((cl, index) => {
+            <div className="flex flex-col gap-0.5">
+              {visibleLists.map((cl) => {
                 const isActive = activeView.type === "list" && activeView.checklistId === cl.id;
                 const isEditing = editingId === cl.id;
-                const itemStyle = getItemStyle(index);
                 const checkedCount = cl.items.filter((i) => i.checked).length;
 
                 return (
                   <div
                     key={cl.id}
-                    style={itemStyle}
-                    aria-grabbed={isDragging}
                     className={`group flex items-center gap-0.5 rounded-xl px-1 transition-colors ${
                       isActive ? "bg-blue-50 ring-1 ring-blue-200" : "hover:bg-stone-100"
                     }`}
                   >
-                    {/* Drag handle */}
-                    <button
-                      type="button"
-                      onPointerDown={(e) => handlePointerDown(index, e)}
-                      className="flex h-10 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-stone-400 transition-colors hover:text-stone-600 active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                      aria-label="並び替え"
-                      tabIndex={0}
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 14 14"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      >
-                        <line x1="4" y1="3.5" x2="10" y2="3.5" />
-                        <line x1="4" y1="7" x2="10" y2="7" />
-                        <line x1="4" y1="10.5" x2="10" y2="10.5" />
-                      </svg>
-                    </button>
-
                     {/* Name / Edit input */}
                     {isEditing ? (
                       <input
