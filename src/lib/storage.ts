@@ -65,3 +65,25 @@ export function createChecklist(name: string): Checklist {
 export function createItem(label: string): { id: string; label: string; checked: boolean } {
   return { id: generateId(), label, checked: false };
 }
+
+// Collapse toggle persistence
+export const COLLAPSED_KEY = "belongings-collapsed";
+
+export function loadCollapsedIds(): string[] {
+  try {
+    const saved = localStorage.getItem(COLLAPSED_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCollapsedIds(ids: string[]): boolean {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify(ids));
+    return true;
+  } catch (e) {
+    console.error("Failed to save collapsed ids:", e);
+    return false;
+  }
+}
