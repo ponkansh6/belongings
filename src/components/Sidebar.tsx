@@ -5,7 +5,6 @@ import type { Checklist } from "@/lib/types";
 import type { ActiveView } from "@/hooks/useChecklists";
 import { useDragReorder } from "@/hooks/useDragReorder";
 
-
 interface SidebarProps {
   checklists: Checklist[];
   activeView: ActiveView;
@@ -275,68 +274,70 @@ export default function Sidebar({
                   </button>
                 </div>
               )}
+
+              {/* New checklist input / button inside fold */}
+              {showNewInput ? (
+                <div className="flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 shadow-sm">
+                  <input
+                    ref={newInputRef}
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleNewSubmit();
+                      if (e.key === "Escape") handleCancelNew();
+                    }}
+                    onBlur={() => {
+                      if (!newName.trim()) handleCancelNew();
+                    }}
+                    placeholder="リスト名を入力..."
+                    className="h-8 flex-1 text-sm outline-none placeholder:text-stone-400"
+                    aria-label="新しいリスト名"
+                  />
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={handleCancelNew}
+                      className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-colors hover:bg-stone-100"
+                    >
+                      キャンセル
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNewSubmit}
+                      disabled={!newName.trim()}
+                      className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-blue-600 active:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-500"
+                    >
+                      作成
+                    </button>
+                  </div>
+                </div>
+              ) : checklists.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowNewInput(true)}
+                  className="flex items-center gap-2 rounded-xl border-2 border-dashed border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-500 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 active:bg-blue-100"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <line x1="7" y1="2" x2="7" y2="12" />
+                    <line x1="2" y1="7" x2="12" y2="7" />
+                  </svg>
+                  新規リスト
+                </button>
+              ) : null}
             </div>
           ) : null}
         </>
       )}
 
-      {/* New checklist input / button */}
-      {showNewInput ? (
-        <div className="flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 shadow-sm">
-          <input
-            ref={newInputRef}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleNewSubmit();
-              if (e.key === "Escape") handleCancelNew();
-            }}
-            onBlur={() => {
-              if (!newName.trim()) handleCancelNew();
-            }}
-            placeholder="リスト名を入力..."
-            className="h-8 flex-1 text-sm outline-none placeholder:text-stone-400"
-            aria-label="新しいリスト名"
-          />
-          <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={handleCancelNew}
-              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-colors hover:bg-stone-100"
-            >
-              キャンセル
-            </button>
-            <button
-              type="button"
-              onClick={handleNewSubmit}
-              disabled={!newName.trim()}
-              className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-blue-600 active:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-500"
-            >
-              作成
-            </button>
-          </div>
-        </div>
-      ) : checklists.length > 0 ? (
-        <button
-          type="button"
-          onClick={() => setShowNewInput(true)}
-          className="flex items-center gap-2 rounded-xl border-2 border-dashed border-stone-300 px-4 py-2.5 text-sm font-medium text-stone-500 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 active:bg-blue-100"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <line x1="7" y1="2" x2="7" y2="12" />
-            <line x1="2" y1="7" x2="12" y2="7" />
-          </svg>
-          新規リスト
-        </button>
-      ) : null}
+
     </aside>
   );
 }
