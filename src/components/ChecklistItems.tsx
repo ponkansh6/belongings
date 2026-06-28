@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Checklist } from "@/lib/types";
 import { useDragReorder } from "@/hooks/useDragReorder";
@@ -26,89 +25,9 @@ export default function ChecklistItems({
 }: ChecklistItemsProps) {
   const [newItemLabel, setNewItemLabel] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suppressNextClickRef = useRef(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
 
-  const { containerRef, handlePointerDown, getItemStyle, isDragging, dragState } =
+  const { containerRef, handlePointerDown, getItemStyle, dragState } =
     useDragReorder(onReorderItems);
-
-  const handleDeleteRequest = useCallback((id: string, label: string) => {
-    setDeleteTarget({ id, label });
-  }, []);
-
-  const confirmDelete = useCallback(() => {
-    if (deleteTarget) {
-      onDeleteItem(deleteTarget.id);
-      setDeleteTarget(null);
-      suppressNextClickRef.current = false;
-    }
-  }, [deleteTarget, onDeleteItem]);
-
-  const cancelDelete = useCallback(() => {
-    setDeleteTarget(null);
-    suppressNextClickRef.current = false;
-  }, []);
-
-  // Refs to keep the latest items and handlers accessible from the effect
-  const itemsRef = useRef(checklist.items);
-  itemsRef.current = checklist.items;
-  const handleDeleteRequestRef = useRef(handleDeleteRequest);
-  handleDeleteRequestRef.current = handleDeleteRequest;
-
-  // Native event delegation for long-press detection
-  // Uses container-level listeners instead of React's onPointerDown to work
-  // reliably across all test environments (happy-dom does not forward
-  // non-click pointer events to React's synthetic event system).
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handlePointerDown = (e: PointerEvent) => {
-      // Only handle pointerdown inside a label (the item content area)
-      const label = (e.target as HTMLElement).closest("label");
-      if (!label) return;
-      if (!container.contains(label)) return;
-
-      // Find which checklist item this label belongs to
-      const itemDiv = label.closest("[data-testid='checklist-item']");
-      if (!itemDiv) return;
-
-      const children = Array.from(container.children);
-      const index = children.indexOf(itemDiv);
-      if (index < 0 || index >= itemsRef.current.length) return;
-
-      const item = itemsRef.current[index];
-
-      longPressTimerRef.current = setTimeout(() => {
-        suppressNextClickRef.current = true;
-        handleDeleteRequestRef.current(item.id, item.label);
-      }, 500);
-    };
-
-    const clearTimer = () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-      }
-    };
-
-    container.addEventListener("pointerdown", handlePointerDown);
-    container.addEventListener("pointerup", clearTimer);
-    container.addEventListener("pointerleave", clearTimer);
-    container.addEventListener("pointermove", clearTimer);
-
-    return () => {
-      container.removeEventListener("pointerdown", handlePointerDown);
-      container.removeEventListener("pointerup", clearTimer);
-      container.removeEventListener("pointerleave", clearTimer);
-      container.removeEventListener("pointermove", clearTimer);
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-      }
-    };
-  }, [containerRef]);
 
   // Focus input when switching lists
   useEffect(() => {
@@ -224,11 +143,25 @@ export default function ChecklistItems({
                     style={itemStyle}
                     className="relative overflow-hidden rounded-xl"
                   >
+                    {/* Swipe-to-delete red background */}
+                    <div className="absolute inset-y-0 right-0 flex w-full items-center justify-end rounded-xl bg-red-500 pr-5">
+                      <span className="text-sm font-medium text-white">削除</span>
+                    </div>
+
                     <motion.div
                       className={`relative flex items-center gap-1.5 rounded-xl px-1 transition-colors ${
                         item.checked ? "bg-stone-100" : "bg-white hover:bg-stone-50"
                       }`}
-                      aria-grabbed={isDragging}
+                      drag="x"
+                      dragDirectionLock
+                      dragConstraints={{ left: -250, right: 0 }}
+                      dragElastic={{ left: 0.05, right: 0 }}
+                      dragSnapToOrigin
+                      onDragEnd={(_event, info) => {
+                        if (info.offset.x < -180) {
+                          onDeleteItem(item.id);
+                        }
+                      }}
                     >
                       {/* Drag handle */}
                       <button
@@ -262,13 +195,7 @@ export default function ChecklistItems({
                           <input
                             type="checkbox"
                             checked={item.checked}
-                            onChange={() => {
-                              if (suppressNextClickRef.current) {
-                                suppressNextClickRef.current = false;
-                                return;
-                              }
-                              onToggle(item.id);
-                            }}
+                            onChange={() => onToggle(item.id)}
                             className="peer sr-only"
                           />
                           {item.checked && (
@@ -295,27 +222,6 @@ export default function ChecklistItems({
                           {item.label}
                         </span>
                       </label>
-
-                      {/* Delete button — desktop/keyboard fallback */}
-                      <button
-                        type="button"
-                        onClick={() => onDeleteItem(item.id)}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-stone-300 opacity-0 transition-all hover:bg-red-100 hover:text-red-500 focus-visible:opacity-100 group-hover:opacity-100"
-                        aria-label={`「${item.label}」を削除`}
-                      >
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 12 12"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                        >
-                          <line x1="2" y1="2" x2="10" y2="10" />
-                          <line x1="10" y1="2" x2="2" y2="10" />
-                        </svg>
-                      </button>
                     </motion.div>
                   </motion.div>
                 );
@@ -423,54 +329,6 @@ export default function ChecklistItems({
           追加
         </button>
       </div>
-
-      {/* Long-press delete confirmation popup */}
-      {deleteTarget &&
-        createPortal(
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-            onClick={cancelDelete}
-            data-testid="delete-backdrop"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-              role="alertdialog"
-              aria-labelledby="delete-dialog-title"
-            >
-              <p
-                id="delete-dialog-title"
-                className="text-sm font-medium text-stone-700"
-              >
-                「{deleteTarget.label}」を削除しますか？
-              </p>
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={cancelDelete}
-                  className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                  autoFocus
-                >
-                  キャンセル
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmDelete}
-                  className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-                >
-                  削除
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>,
-          document.body,
-        )}
     </div>
   );
 }
