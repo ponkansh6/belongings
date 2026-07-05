@@ -2,6 +2,6 @@
 root = "./"
 environment = "node"
 setupFiles = ["./tests/utils/logic-setup-minimal.ts", "./tests/utils/global-silence.ts"]
-include = ["tests/**/*.{test.ts,test.tsx}"]
+include = ["tests/**/*.test.ts"]
 pathIgnorePatterns = ["tests/**/*.test.tsx", "tests/**/*.spec.ts"]
 timeout = 30000
