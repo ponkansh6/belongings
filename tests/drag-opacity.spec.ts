@@ -3,7 +3,11 @@ import { test, expect } from "@playwright/test";
 test("opacity restores after cancelled drag in real browser", async ({ page }) => {
   // Navigate to the app
   await page.goto("/");
-  await page.waitForLoadState("networkidle");
+  // Wait for content to render after loading
+  await page.waitForSelector("text=チェックリストを選択してください", { timeout: 10000 });
+  // Select a checklist so drag handles are visible
+  await page.locator("text=出勤").click();
+  await page.waitForSelector("text=スマホ", { timeout: 5000 });
 
   // Find the first drag handle (button with aria-label="並び替え")
   const handle = page.getByLabel("並び替え").first();

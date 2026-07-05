@@ -1,0 +1,53 @@
+schema: spec-driven
+
+# Project context — shown to AI when creating artifacts
+context: |
+  ## 技術スタック
+  - Framework: Next.js 16 (App Router, Turbopack)
+  - Language: TypeScript 6 (strict mode)
+  - Runtime: Bun (package manager: pnpm)
+  - UI: React 19, Tailwind CSS v4, Framer Motion
+  - Charts: Recharts (v3)
+  - Data処理: PapaParse (CSV)
+  - Testing: Vitest, @testing-library/react, Playwright (E2E), happy-dom
+  - Lint/Format: ESLint, Oxlint, Oxfmt, Prettier
+  - Pre-commit: Husky + lint-staged
+
+  ## プロジェクト構造
+  - src/app/ — App Router pages/layouts (RSC)
+  - src/components/ — UI components
+  - src/hooks/ — Client-side custom hooks
+  - src/lib/ — Client utility modules
+  - tests/ — Test suites (unit, integration, E2E)
+
+  ## ドメイン知識
+  - Personal Belongings Checklist: 持ち物チェックリストアプリ
+  - ユーザーが旅行や引越し前に持ち物をリスト化し、パッキング状態を管理
+  - アイテムの追加・削除・パッキング済みマークが可能
+  - データはクライアント側で管理（認証・クラウド同期はスコープ外）
+
+  ## コーディング規約
+  - TypeScript strict mode、any 禁止
+  - 関数コンポーネント、明示的な戻り値の型
+  - Tailwind CSS でスタイリング
+  - サーバーコンポーネント優先、クライアントコンポーネントは "use client" を明示
+  - テストは Vitest + Testing Library、E2E は Playwright
+  - import パスは @/*（src/）のエイリアスを使用
+
+# Per-artifact rules
+rules:
+  proposal:
+    - Write in Japanese or English based on request language
+    - Include "Purpose", "Requirements" with concrete scenarios (Gherkin形式)
+    - Include "Data Model" section when adding/modifying data structures
+    - Include "Non-goals" section to clarify scope boundaries
+    - Keep proposals under 1000 words unless complexity demands more
+  tasks:
+    - Break tasks into chunks of max 2 hours
+    - Each task must have a clear acceptance criterion
+    - Prefer small, independent PRs over large monolithic changes
+    - Include test considerations in each task
+  spec:
+    - Each requirement must have at least one Scenario (WHEN/THEN)
+    - Non-functional requirements (performance, accessibility) should be explicitly stated
+    - UI specifications should reference component names in src/components/

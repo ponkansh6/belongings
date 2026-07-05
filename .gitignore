@@ -27,3 +27,13 @@ public/backup/
 public/cpi_source/*.xls
 public/cpi_source/*.xlsx
 .eslintcache
+
+# Test artifacts
+PLAYWRIGHT_NOTES.md
+codemap.md
+src/codemap.md
+src/hooks/codemap.md
+src/lib/codemap.md
+tests/codemap.md
+tests/utils/codemap.md
+test-results/

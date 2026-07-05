@@ -1,18 +1,20 @@
 #!/bin/sh
 
-# プッシュされるコミットに含まれるファイルのみチェック
-UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null | sed 's|refs/remotes/||')
-if [ -n "$UPSTREAM" ] && git diff --name-only "$UPSTREAM"...HEAD | grep -qE "src/components|src/hooks|tests/"; then
-  echo "Running pre-push UI tests for relevant changes..."
-  pnpm vitest run -c tests/vitest.ui.config.ts
-  TEST_EXIT_CODE=$?
-  if [ $TEST_EXIT_CODE -ne 0 ]; then
-    echo "UI Tests failed with code $TEST_EXIT_CODE"
-    exit $TEST_EXIT_CODE
-  fi
-  echo "Pre-push UI tests passed!"
-else
-  echo "No UI-related changes detected in this push. Skipping UI tests."
+echo "Running all tests before push..."
+
+pnpm test:all
+TEST_EXIT_CODE=$?
+if [ $TEST_EXIT_CODE -ne 0 ]; then
+  echo "Unit tests failed with code $TEST_EXIT_CODE"
+  exit $TEST_EXIT_CODE
 fi
 
+pnpm test:e2e
+E2E_EXIT_CODE=$?
+if [ $E2E_EXIT_CODE -ne 0 ]; then
+  echo "E2E tests failed with code $E2E_EXIT_CODE"
+  exit $E2E_EXIT_CODE
+fi
+
+echo "All tests passed!"
 exit 0
