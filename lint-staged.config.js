@@ -1,3 +1,3 @@
 export default {
-  "*.{ts,tsx}": ["vitest run"],
+  "src/**/*.{ts,tsx}": ["vitest run"],
 };
