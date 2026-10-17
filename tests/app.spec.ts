@@ -53,7 +53,9 @@ test("shows placeholder when no checklist selected", async ({ page }) => {
   await waitForApp(page);
 
   await expect(page.locator("text=チェックリストを選択してください")).toBeVisible();
-  await expect(page.locator("text=左のサイドバーからリストを選ぶか、新しいリストを作成してください")).toBeVisible();
+  await expect(
+    page.locator("text=左のサイドバーからリストを選ぶか、新しいリストを作成してください"),
+  ).toBeVisible();
 });
 
 // ─────────────────────────────────────────────
@@ -70,7 +72,15 @@ test("selecting a checklist displays its items", async ({ page }) => {
   await page.waitForSelector("text=スマホ", { timeout: 5000 });
 
   // Verify all seed items for 出勤
-  for (const label of ["スマホ", "財布", "名札・社員証", "PC・充電器", "お弁当", "マスク", "ハンカチ・ティッシュ"]) {
+  for (const label of [
+    "スマホ",
+    "財布",
+    "名札・社員証",
+    "PC・充電器",
+    "お弁当",
+    "マスク",
+    "ハンカチ・ティッシュ",
+  ]) {
     await expect(page.locator(`text=${label}`)).toBeVisible();
   }
 });
@@ -168,6 +178,9 @@ test("reset all checklists", async ({ page }) => {
   // Verify sidebar counts reset to 0 after reset
   await expect(page.locator("aside").getByText("0/7")).toBeVisible();
   await expect(page.locator("aside").getByText("0/5")).toBeVisible();
+
+  // The selected list's visible checkbox state should reset immediately too.
+  await expect(page.locator("input[type='checkbox']").first()).not.toBeChecked();
 });
 
 // ─────────────────────────────────────────────
@@ -212,13 +225,15 @@ test("celebration overlay on 100% completion", async ({ page }) => {
 test("adding a new checklist via sidebar", async ({ page }) => {
   await page.goto("/");
   await waitForApp(page);
+  const sidebar = page.locator("aside");
 
-  // "新規リスト" button appears when lists exist (and not folded to 0 visible)
-  await page.locator("button:has-text('残り1件を表示')").click();
+  await expect(sidebar.getByRole("button", { name: "新規リスト" })).not.toBeVisible();
+  await sidebar.getByRole("button", { name: "残り1件を表示" }).click();
+  await expect(sidebar.getByRole("button", { name: "新規リスト" })).toBeVisible();
 
-  await page.locator("button:has-text('新規リスト')").click();
+  await sidebar.getByRole("button", { name: "新規リスト" }).click();
 
-  const input = page.locator("input[aria-label='新しいリスト名']");
+  const input = sidebar.locator("input[aria-label='新しいリスト名']");
   await input.fill("マイリスト");
 
   await page.getByRole("button", { name: "作成" }).click();
@@ -256,6 +271,46 @@ test("deleting a checklist with confirmation", async ({ page }) => {
   await page.locator("button[aria-label='削除']").nth(2).click();
 
   await expect(page.locator("text=ジム")).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "残り1件を表示" })).toHaveCount(0);
+});
+
+test("deleting the selected checklist returns to the all-checklists view", async ({ page }) => {
+  await page.goto("/");
+  await waitForApp(page);
+
+  page.on("dialog", (d) => d.accept());
+
+  const sidebar = page.locator("aside");
+  const selectedChecklist = sidebar.getByRole("button").filter({ hasText: "お出かけ" });
+  await selectedChecklist.click();
+  await expect(page.getByRole("heading", { name: "お出かけ" })).toBeVisible();
+
+  await selectedChecklist.locator("xpath=..").getByRole("button", { name: "削除" }).click();
+
+  await expect(sidebar.getByText("お出かけ")).not.toBeVisible();
+  await expect(sidebar.getByText("出勤")).toBeVisible();
+  await expect(page.locator("main").getByText("チェックリストを選択してください")).toBeVisible();
+});
+
+test("deleting another checklist keeps the selected checklist active", async ({ page }) => {
+  await page.goto("/");
+  await waitForApp(page);
+
+  page.on("dialog", (dialog) => dialog.accept());
+
+  const sidebar = page.locator("aside");
+  await sidebar.getByRole("button").filter({ hasText: "出勤" }).click();
+  await expect(page.getByRole("heading", { name: "出勤" })).toBeVisible();
+  await expect(page.locator("main").getByText("スマホ")).toBeVisible();
+
+  // Locate お出かけ after selecting 出勤, since selection can change row order.
+  const otherChecklist = sidebar.getByRole("button").filter({ hasText: "お出かけ" });
+  await otherChecklist.locator("xpath=..").getByRole("button", { name: "削除" }).click();
+
+  await expect(sidebar.getByText("お出かけ")).not.toBeVisible();
+  await expect(page.getByRole("heading", { name: "出勤" })).toBeVisible();
+  await expect(page.locator("main").getByText("スマホ")).toBeVisible();
+  await expect(page.locator("main").getByText("財布")).toBeVisible();
 });
 
 test("empty state when all checklists deleted", async ({ page }) => {
@@ -283,23 +338,32 @@ test("empty state when all checklists deleted", async ({ page }) => {
 test("show more / collapse", async ({ page }) => {
   await page.goto("/");
   await waitForApp(page);
+  const sidebar = page.locator("aside");
 
   // Only first 2 checklists visible initially
   await expect(page.locator("text=出勤")).toBeVisible();
   await expect(page.locator("text=お出かけ")).toBeVisible();
   await expect(page.locator("text=ジム")).not.toBeVisible();
+  await expect(sidebar.getByRole("button", { name: "新規リスト" })).not.toBeVisible();
 
   // Click "残り1件を表示"
   await page.locator("text=残り1件を表示").click();
 
   // All 3 visible
   await expect(page.locator("text=ジム")).toBeVisible();
+  await expect(sidebar.getByRole("button", { name: "新規リスト" })).toBeVisible();
 
   // Fold
   await page.locator("text=折りたたむ").click();
 
   await expect(page.locator("text=出勤")).toBeVisible();
   await expect(page.locator("text=ジム")).not.toBeVisible();
+  await expect(sidebar.getByRole("button", { name: "新規リスト" })).not.toBeVisible();
+
+  // A checklist that was hidden while folded can be selected after expansion.
+  await sidebar.getByRole("button", { name: "残り1件を表示" }).click();
+  await sidebar.getByRole("button", { name: /ジム/ }).click();
+  await expect(page.getByRole("heading", { name: "ジム" })).toBeVisible();
 });
 
 // ─────────────────────────────────────────────
@@ -312,7 +376,7 @@ test("progress bar updates as items are checked", async ({ page }) => {
   await page.locator("text=出勤").click();
   await page.waitForSelector("text=スマホ", { timeout: 5000 });
 
-const progressBar = page.locator("div.bg-blue-500").first();
+  const progressBar = page.locator("div.bg-blue-500").first();
 
   // Check 1 item → ~14.3%
   await page.locator("input[type='checkbox']").first().check({ force: true });
@@ -368,11 +432,18 @@ test("swipe to delete an item", async ({ page }) => {
   await page.locator("text=出勤").click();
   await page.waitForSelector("text=スマホ", { timeout: 5000 });
 
+  // Removing a checked item must remove it from both checklist and global progress.
+  await page.locator("input[type='checkbox']").first().check({ force: true });
+  await expect(page.locator("text=1/7 完了")).toBeVisible();
+  await expect(page.getByRole("button").filter({ hasText: "出勤" })).toContainText("1/7");
+  await expect(page.locator("aside")).toContainText("1/17");
+
   // Use the label (which wraps the checkbox) to perform the drag.
   // The label is inside the motion.div with drag="x", so pointer events
   // on it bubble up and trigger framer-motion's drag handler.
   const label = page.locator("label").first();
   await expect(label).toBeVisible();
+  const deletedItemName = await label.innerText();
   const box = await label.boundingBox();
   if (!box) throw new Error("Label not found");
 
@@ -394,7 +465,65 @@ test("swipe to delete an item", async ({ page }) => {
   // Wait for framer-motion exit animation
   await page.waitForTimeout(1000);
 
-  // Verify item count decreased (出勤 has 7 items → 6 after deletion)
+  // Verify item count and progress decreased (出勤 has 7 items → 6 after deletion).
   const count = await page.locator("[data-testid='checklist-item']").count();
   expect(count).toBe(6);
+  await expect(page.locator("text=0/6 完了")).toBeVisible();
+  await expect(page.getByRole("button").filter({ hasText: "出勤" })).toContainText("0/6");
+  await expect(page.locator("aside")).toContainText("0/16");
+  await expect(page.locator("div.bg-blue-500").first()).toHaveCSS("width", "0px");
+
+  // The deletion should be persisted, not just hidden until the next reload.
+  await page.waitForTimeout(500); // debounced save (300ms)
+  await page.reload();
+  await waitForApp(page);
+  await page.locator("text=出勤").click();
+  const itemRows = page.locator("[data-testid='checklist-item']");
+  await expect(itemRows).toHaveCount(6);
+
+  await expect(itemRows.filter({ hasText: deletedItemName })).toHaveCount(0);
+});
+
+test("long-press dragging reorders checklist items and persists the order", async ({ page }) => {
+  await page.goto("/");
+  await waitForApp(page);
+  await page.locator("text=出勤").click();
+
+  const rows = page.locator("[data-testid='checklist-item']");
+  await expect(rows).toHaveCount(7);
+  const labels = rows.locator("label span.min-w-0");
+  const originalOrder = await labels.allTextContents();
+  expect(originalOrder.slice(0, 2)).toEqual(["スマホ", "財布"]);
+
+  const firstHandle = page.getByRole("button", { name: "並び替え" }).first();
+  const firstBox = await firstHandle.boundingBox();
+  const secondBox = await rows.nth(1).boundingBox();
+  if (!firstBox || !secondBox) throw new Error("Checklist drag target not found");
+
+  await page.mouse.move(firstBox.x + firstBox.width / 2, firstBox.y + firstBox.height / 2);
+  await page.mouse.down();
+  // useDragReorder activates after a 250 ms long press.
+  await page.waitForTimeout(300);
+  // Move the first item below the second item's midpoint to insert after it.
+  await page.mouse.move(firstBox.x + firstBox.width / 2, secondBox.y + secondBox.height / 2 + 2, {
+    steps: 5,
+  });
+  await page.mouse.up();
+
+  await expect
+    .poll(async () => (await labels.allTextContents()).slice(0, 2))
+    .toEqual(["財布", "スマホ"]);
+
+  // The hook persists the reordered checklist through the normal debounced storage path.
+  await page.waitForTimeout(500);
+  await page.reload();
+  await waitForApp(page);
+  await page.locator("text=出勤").click();
+  await expect
+    .poll(async () =>
+      (
+        await page.locator("[data-testid='checklist-item'] label span.min-w-0").allTextContents()
+      ).slice(0, 2),
+    )
+    .toEqual(["財布", "スマホ"]);
 });

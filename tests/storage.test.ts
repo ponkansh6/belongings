@@ -1,16 +1,17 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mockLocalStorage } from "./utils/localstorage-mock";
-import {
-  loadChecklists,
-  saveChecklists,
-  createChecklist,
-  createItem,
-} from "@/lib/storage";
+import { loadChecklists, saveChecklists, createChecklist, createItem } from "@/lib/storage";
 import type { Checklist, AppData } from "@/lib/types";
 
 beforeEach(() => {
   mockLocalStorage();
   localStorage.clear();
+});
+
+afterEach(() => {
+  vi.mocked(localStorage.setItem).mockReset();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("createChecklist", () => {
@@ -26,6 +27,21 @@ describe("createChecklist", () => {
     const a = createChecklist("A");
     const b = createChecklist("B");
     expect(a.id).not.toBe(b.id);
+  });
+
+  it("creates checklist and item ids when crypto.randomUUID is unavailable", () => {
+    vi.stubGlobal("crypto", { randomUUID: undefined });
+
+    const checklist = createChecklist("Fallback list");
+    const item = createItem("Fallback item");
+
+    expect(checklist).toMatchObject({
+      name: "Fallback list",
+      items: [],
+    });
+    expect(checklist.id).toMatch(/^\d+-[a-z0-9]{1,7}$/);
+    expect(item).toMatchObject({ label: "Fallback item", checked: false });
+    expect(item.id).toMatch(/^\d+-[a-z0-9]{1,7}$/);
   });
 });
 
@@ -67,10 +83,35 @@ describe("loadChecklists", () => {
     expect(loaded[0].items[0].checked).toBe(true);
   });
 
+  it("preserves version 0 checklists and persists the current version", () => {
+    const checklists: Checklist[] = [
+      {
+        id: "legacy-1",
+        name: "Legacy list",
+        items: [{ id: "legacy-item-1", label: "Keep me", checked: true }],
+      },
+    ];
+    localStorage.setItem("belongings-checker", JSON.stringify({ version: 0, checklists }));
+
+    expect(loadChecklists()).toEqual(checklists);
+    expect(JSON.parse(localStorage.getItem("belongings-checker")!).version).toBe(1);
+    expect(JSON.parse(localStorage.getItem("belongings-checker")!).checklists).toEqual(checklists);
+  });
+
   it("returns seed data when localStorage contains invalid JSON", () => {
     localStorage.setItem("belongings-checker", "{invalid json}");
     const data = loadChecklists();
     expect(data.length).toBe(3);
+  });
+
+  it("returns seed data when reading from localStorage throws", () => {
+    vi.mocked(localStorage.getItem).mockImplementation(() => {
+      throw new Error("storage unavailable");
+    });
+
+    const data = loadChecklists();
+
+    expect(data.map((checklist) => checklist.name)).toContain("出勤");
   });
 
   it("returns seed data when localStorage value is not valid AppData", () => {
@@ -116,6 +157,15 @@ describe("saveChecklists", () => {
     const loaded = loadChecklists();
     expect(loaded).toHaveLength(1);
     expect(loaded[0].name).toBe("Second");
+  });
+
+  it("returns false when writing to localStorage throws", () => {
+    vi.mocked(localStorage.setItem).mockImplementation(() => {
+      throw new Error("storage quota exceeded");
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(saveChecklists([])).toBe(false);
   });
 });
 

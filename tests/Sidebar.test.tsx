@@ -102,6 +102,68 @@ describe("Sidebar", () => {
       expect(onAdd).toHaveBeenCalledWith("My New List");
     });
 
+    it("trims whitespace from a new list name", () => {
+      const onAdd = vi.fn();
+      renderSidebar({ onAdd });
+
+      fireEvent.click(screen.getByText("新規リスト"));
+      fireEvent.change(screen.getByPlaceholderText("リスト名を入力..."), {
+        target: { value: "  My List  " },
+      });
+      fireEvent.click(screen.getByText("作成"));
+
+      expect(onAdd).toHaveBeenCalledWith("My List");
+    });
+
+    it("creates a list when Enter is pressed", () => {
+      const onAdd = vi.fn();
+      renderSidebar({ onAdd });
+
+      fireEvent.click(screen.getByText("新規リスト"));
+      const input = screen.getByPlaceholderText("リスト名を入力...");
+      fireEvent.change(input, { target: { value: "Packing" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(onAdd).toHaveBeenCalledWith("Packing");
+      expect(screen.queryByPlaceholderText("リスト名を入力...")).not.toBeInTheDocument();
+    });
+
+    it("does not create an empty list when Enter is pressed", () => {
+      const onAdd = vi.fn();
+      renderSidebar({ onAdd });
+
+      fireEvent.click(screen.getByText("新規リスト"));
+      const input = screen.getByPlaceholderText("リスト名を入力...");
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(onAdd).not.toHaveBeenCalled();
+      expect(input).toBeInTheDocument();
+    });
+
+    it("discards a new list draft when Escape is pressed", () => {
+      const onAdd = vi.fn();
+      renderSidebar({ onAdd });
+
+      fireEvent.click(screen.getByText("新規リスト"));
+      const input = screen.getByPlaceholderText("リスト名を入力...");
+      fireEvent.change(input, { target: { value: "Unfinished" } });
+      fireEvent.keyDown(input, { key: "Escape" });
+
+      expect(onAdd).not.toHaveBeenCalled();
+      expect(screen.queryByPlaceholderText("リスト名を入力...")).not.toBeInTheDocument();
+    });
+
+    it("closes the empty new list form on blur without adding a list", () => {
+      const onAdd = vi.fn();
+      renderSidebar({ onAdd });
+
+      fireEvent.click(screen.getByText("新規リスト"));
+      fireEvent.blur(screen.getByPlaceholderText("リスト名を入力..."));
+
+      expect(screen.queryByPlaceholderText("リスト名を入力...")).not.toBeInTheDocument();
+      expect(onAdd).not.toHaveBeenCalled();
+    });
+
     it("cancels new list creation", () => {
       renderSidebar();
       fireEvent.click(screen.getByText("新規リスト"));
@@ -126,6 +188,18 @@ describe("Sidebar", () => {
       expect(onRename).toHaveBeenCalledWith("cl-1", "Office");
     });
 
+    it("notifies the parent of a nonempty rename when the input loses focus", () => {
+      const onRename = vi.fn();
+      renderSidebar({ onRename });
+
+      fireEvent.click(screen.getAllByLabelText("名前を変更")[0]);
+      const input = screen.getByLabelText("リスト名を編集");
+      fireEvent.change(input, { target: { value: "Office" } });
+      fireEvent.blur(input);
+
+      expect(onRename).toHaveBeenCalledWith("cl-1", "Office");
+    });
+
     it("cancels rename on Escape", () => {
       const onRename = vi.fn();
       renderSidebar({ onRename });
@@ -137,6 +211,31 @@ describe("Sidebar", () => {
       fireEvent.keyDown(input, { key: "Escape" });
 
       expect(onRename).not.toHaveBeenCalled();
+    });
+
+    it("trims whitespace from the renamed list name", () => {
+      const onRename = vi.fn();
+      renderSidebar({ onRename });
+
+      fireEvent.click(screen.getAllByLabelText("名前を変更")[0]);
+      const input = screen.getByLabelText("リスト名を編集");
+      fireEvent.change(input, { target: { value: "  Office  " } });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(onRename).toHaveBeenCalledWith("cl-1", "Office");
+    });
+
+    it("keeps the existing name when an empty rename is submitted", () => {
+      const onRename = vi.fn();
+      renderSidebar({ onRename });
+
+      fireEvent.click(screen.getAllByLabelText("名前を変更")[0]);
+      const input = screen.getByLabelText("リスト名を編集");
+      fireEvent.change(input, { target: { value: "   " } });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(onRename).not.toHaveBeenCalled();
+      expect(screen.getByText("Work")).toBeInTheDocument();
     });
   });
 

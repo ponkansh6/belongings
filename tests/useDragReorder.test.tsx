@@ -15,19 +15,13 @@ function TestList({
   count: number;
   onReorder: (from: number, to: number) => void;
 }) {
-  const { containerRef, handlePointerDown, getItemStyle, isDragging } =
-    useDragReorder(onReorder);
+  const { containerRef, handlePointerDown, getItemStyle, isDragging } = useDragReorder(onReorder);
 
   return (
     <>
       <div ref={containerRef} data-testid="container">
         {Array.from({ length: count }, (_, i) => (
-          <div
-            key={i}
-            data-testid={`item-${i}`}
-            style={getItemStyle(i)}
-            className="item"
-          >
+          <div key={i} data-testid={`item-${i}`} style={getItemStyle(i)} className="item">
             <button
               type="button"
               data-testid={`handle-${i}`}
@@ -53,26 +47,22 @@ function ReorderableList({ count }: { count: number }) {
     Array.from({ length: count }, (_, i) => ({ id: `item-${i}`, label: `Item ${i}` })),
   );
 
-  const { containerRef, handlePointerDown, getItemStyle, isDragging, dragState } =
-    useDragReorder((from, to) => {
+  const { containerRef, handlePointerDown, getItemStyle, isDragging, dragState } = useDragReorder(
+    (from, to) => {
       setItems((prev) => {
         const next = [...prev];
         const [moved] = next.splice(from, 1);
         next.splice(to, 0, moved);
         return next;
       });
-    });
+    },
+  );
 
   return (
     <>
       <div ref={containerRef} data-testid="container">
         {items.map((item, i) => (
-          <div
-            key={item.id}
-            data-testid={`item-${i}`}
-            style={getItemStyle(i)}
-            className="item"
-          >
+          <div key={item.id} data-testid={`item-${i}`} style={getItemStyle(i)} className="item">
             <button
               type="button"
               data-testid={`handle-${i}`}
@@ -93,10 +83,7 @@ function ReorderableList({ count }: { count: number }) {
 }
 
 /** Create a synthetic PointerEvent with minimal required fields */
-function pointerEvent(
-  type: string,
-  overrides?: Partial<PointerEvent>
-): PointerEvent {
+function pointerEvent(type: string, overrides?: Partial<PointerEvent>): PointerEvent {
   return new PointerEvent(type, {
     clientX: 0,
     clientY: 0,
@@ -140,7 +127,7 @@ afterEach(() => {
 });
 
 describe("useDragReorder", () => {
-  it("does not reorder when drag ends without moving", () => {
+  it("cancels a press released before the long-press timer without reordering", () => {
     const onReorder = vi.fn();
     const { getByTestId } = render(<TestList count={3} onReorder={onReorder} />);
 
@@ -151,6 +138,13 @@ describe("useDragReorder", () => {
     fireEvent(document, pointerEvent("pointerup"));
 
     expect(onReorder).not.toHaveBeenCalled();
+    expect(getByTestId("dragging").textContent).toBe("false");
+
+    // The released press must also cancel its pending activation timer.
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
+    expect(getByTestId("dragging").textContent).toBe("false");
   });
 
   it("shows drag visual only after long-press duration", () => {
@@ -229,7 +223,29 @@ describe("useDragReorder", () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
-  it("cancels on Escape key", () => {
+  it("does not reorder when the drop indicator resolves to the current position", () => {
+    const { getByTestId } = render(<ReorderableList count={3} />);
+
+    fireEvent(getByTestId("handle-0"), pointerEvent("pointerdown", { clientY: 10, button: 0 }));
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
+
+    // overIndex 1 is displayed before item 1; removing item 0 resolves the
+    // insertion index to 0, so the rendered list order must remain unchanged.
+    fireEvent(document, pointerEvent("pointermove", { clientY: 30 }));
+    fireEvent(document, pointerEvent("pointerup"));
+
+    expect(getByTestId("item-0").textContent).toContain("Item 0");
+    expect(getByTestId("item-1").textContent).toContain("Item 1");
+    expect(getByTestId("item-2").textContent).toContain("Item 2");
+    expect(getByTestId("dragging").textContent).toBe("false");
+  });
+
+  it.each([
+    { name: "Escape", createCancelEvent: () => new KeyboardEvent("keydown", { key: "Escape" }) },
+    { name: "pointercancel", createCancelEvent: () => pointerEvent("pointercancel") },
+  ])("cancels on $name and ignores a later pointerup", ({ createCancelEvent }) => {
     const onReorder = vi.fn();
     const { getByTestId } = render(<TestList count={3} onReorder={onReorder} />);
 
@@ -244,10 +260,15 @@ describe("useDragReorder", () => {
     // Move past threshold
     fireEvent(document, pointerEvent("pointermove", { clientY: 60 }));
 
-    // Escape cancels
-    fireEvent(document, new KeyboardEvent("keydown", { key: "Escape" }));
+    fireEvent(document, createCancelEvent());
 
     expect(onReorder).not.toHaveBeenCalled();
+    expect(getByTestId("dragging").textContent).toBe("false");
+
+    // The following pointerup must not commit the canceled drag or change state.
+    fireEvent(document, pointerEvent("pointerup"));
+    expect(onReorder).not.toHaveBeenCalled();
+    expect(getByTestId("dragging").textContent).toBe("false");
   });
 
   it("ignores non-left-button pointer down", () => {
@@ -263,26 +284,6 @@ describe("useDragReorder", () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
-  it("handles pointercancel gracefully", () => {
-    const onReorder = vi.fn();
-    const { getByTestId } = render(<TestList count={3} onReorder={onReorder} />);
-
-    const handle = getByTestId("handle-0");
-    fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
-
-    // Wait for long-press to activate
-    act(() => {
-      vi.advanceTimersByTime(LONG_PRESS_DURATION);
-    });
-
-    fireEvent(document, pointerEvent("pointermove", { clientY: 60 }));
-
-    // pointercancel should end without calling onReorder
-    fireEvent(document, pointerEvent("pointercancel"));
-
-    expect(onReorder).not.toHaveBeenCalled();
-  });
-
   it("restores full opacity when drag returns to original position and ends", () => {
     const onReorder = vi.fn();
     const { getByTestId } = render(<TestList count={3} onReorder={onReorder} />);
@@ -292,7 +293,9 @@ describe("useDragReorder", () => {
 
     // Long-press handle-0
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
-    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
 
     // Move to overIndex=1
     fireEvent(document, pointerEvent("pointermove", { clientY: 50 }));
@@ -317,7 +320,9 @@ describe("useDragReorder", () => {
 
     // Long-press and drag
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
-    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
     // clientY=70 → overIndex=2 (top half of item 2) → toIndex=1
     fireEvent(document, pointerEvent("pointermove", { clientY: 70 }));
 
@@ -335,7 +340,9 @@ describe("useDragReorder", () => {
     // Drag item 0 to bottom (overIndex=4, beyond last item)
     const handle = getByTestId("handle-0");
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
-    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
 
     // Move to below last item's midpoint
     // 4 items at y=0,40,80,120 with height=40; midpoints at 20,60,100,140
@@ -355,7 +362,9 @@ describe("useDragReorder", () => {
 
     // Long-press and drag item-0 to position 1
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
-    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
     // clientY=70 → overIndex=2 (top half of item 2) → toIndex=1
     fireEvent(document, pointerEvent("pointermove", { clientY: 70 }));
 
@@ -375,7 +384,9 @@ describe("useDragReorder", () => {
 
     // Long-press and drag item-0 down
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 10, button: 0 }));
-    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
 
     // Move pointer to top half of item 3
     // Items at y=0,40,80,120 with height 40; midpoints at 20,60,100,140
@@ -404,7 +415,9 @@ describe("useDragReorder", () => {
 
     // Long-press and drag item-3 up
     fireEvent(handle, pointerEvent("pointerdown", { clientY: 130, button: 0 }));
-    act(() => { vi.advanceTimersByTime(LONG_PRESS_DURATION); });
+    act(() => {
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
+    });
 
     // Move pointer to bottom half of item 0
     // Items at y=0,40,80,120 with height 40; midpoints at 20,60,100,140

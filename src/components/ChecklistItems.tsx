@@ -57,12 +57,14 @@ export default function ChecklistItems({
   const allChecked = checklist.items.length > 0 && checkedCount === checklist.items.length;
 
   const [showCelebration, setShowCelebration] = useState(false);
+  const showCompletionCelebration = showCelebration && allChecked;
   const prevAllCheckedRef = useRef(allChecked);
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   // Detect 100% completion and show celebration briefly
   useEffect(() => {
     if (allChecked && !prevAllCheckedRef.current) {
+      prevAllCheckedRef.current = true;
       setShowCelebration(true);
       const t = setTimeout(() => setShowCelebration(false), 3000);
       return () => clearTimeout(t);
@@ -255,7 +257,7 @@ export default function ChecklistItems({
 
           {/* 100% celebration overlay */}
           <AnimatePresence>
-            {showCelebration && (
+            {showCompletionCelebration && (
               <motion.div
                 initial={false}
                 animate={{
@@ -323,6 +325,8 @@ export default function ChecklistItems({
           value={newItemLabel}
           onChange={(e) => setNewItemLabel(e.target.value)}
           onKeyDown={(e) => {
+            // Other keys do not submit; revisit if this input gains keyboard shortcuts.
+            /* v8 ignore else -- @preserve */
             if (e.key === "Enter") handleAddSubmit();
           }}
           placeholder="アイテムを追加..."

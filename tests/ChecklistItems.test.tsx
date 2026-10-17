@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import ChecklistItems from "@/components/ChecklistItems";
 import type { Checklist } from "@/lib/types";
@@ -40,6 +40,8 @@ vi.mock("framer-motion", async () => {
     const isDraggable = drag !== undefined;
     const dragSnapToOrigin = Boolean(dragSnapToOriginProp);
     const [xPos, setXPos] = React.useState(0);
+    const testAnimation = animate as { scale?: unknown } | undefined;
+    const testTransition = transition as { duration?: unknown } | undefined;
 
     const onDragEndRef = React.useRef(onDragEnd);
     onDragEndRef.current = onDragEnd;
@@ -61,15 +63,25 @@ vi.mock("framer-motion", async () => {
       }
     }, [isDraggable, onDragEnd, wrappedOnDragEnd]);
 
-    return React.createElement("div", {
-      ...htmlProps,
-      ...(isDraggable
-        ? {
-            "data-test-drag-snap": String(dragSnapToOrigin),
-            "data-test-x": String(xPos),
-          }
-        : {}),
-    }, children as React.ReactNode);
+    return React.createElement(
+      "div",
+      {
+        ...htmlProps,
+        ...(isDraggable
+          ? {
+              "data-test-drag-snap": String(dragSnapToOrigin),
+              "data-test-x": String(xPos),
+            }
+          : {}),
+        ...(testAnimation?.scale !== undefined
+          ? { "data-test-scale": JSON.stringify(testAnimation.scale) }
+          : {}),
+        ...(testTransition?.duration !== undefined
+          ? { "data-test-duration": String(testTransition.duration) }
+          : {}),
+      },
+      children as React.ReactNode,
+    );
   }
 
   return {
@@ -118,6 +130,12 @@ beforeEach(() => {
   (globalThis as any).__dragEndCallbacks = [];
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
 describe("ChecklistItems", () => {
   it("renders the checklist name", () => {
     renderItems();
@@ -142,6 +160,183 @@ describe("ChecklistItems", () => {
     expect(screen.getByText(/すべて完了/)).toBeInTheDocument();
   });
 
+  it("updates the completion state when items become complete and incomplete", () => {
+    const incomplete: Checklist = {
+      id: "cl-transition",
+      name: "Transition",
+      items: [
+        { id: "a", label: "A", checked: true },
+        { id: "b", label: "B", checked: false },
+      ],
+    };
+    const { rerender } = renderItems({ checklist: incomplete });
+
+    expect(screen.getByText("1/2 完了")).toBeInTheDocument();
+    expect(screen.queryByText(/すべて完了/)).not.toBeInTheDocument();
+
+    const complete = {
+      ...incomplete,
+      items: incomplete.items.map((item) => ({ ...item, checked: true })),
+    };
+    rerender(
+      <ChecklistItems
+        checklist={complete}
+        onToggle={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        onReorderItems={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("2/2 完了 ✓ すべて完了")).toBeInTheDocument();
+
+    rerender(
+      <ChecklistItems
+        checklist={incomplete}
+        onToggle={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        onReorderItems={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("1/2 完了")).toBeInTheDocument();
+    expect(screen.queryByText(/すべて完了/)).not.toBeInTheDocument();
+  });
+
+  it("hides and cancels the celebration when completion is undone", () => {
+    vi.useFakeTimers();
+    const incomplete: Checklist = {
+      id: "cl-celebration",
+      name: "Celebration",
+      items: [
+        { id: "a", label: "A", checked: false },
+        { id: "b", label: "B", checked: false },
+      ],
+    };
+    const { rerender } = renderItems({ checklist: incomplete });
+    const complete = {
+      ...incomplete,
+      items: incomplete.items.map((item) => ({ ...item, checked: true })),
+    };
+
+    rerender(
+      <ChecklistItems
+        checklist={complete}
+        onToggle={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        onReorderItems={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("行ってらっしゃい！")).toBeInTheDocument();
+
+    rerender(
+      <ChecklistItems
+        checklist={incomplete}
+        onToggle={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        onReorderItems={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("行ってらっしゃい！")).not.toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    rerender(
+      <ChecklistItems
+        checklist={complete}
+        onToggle={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        onReorderItems={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("行ってらっしゃい！")).toBeInTheDocument();
+
+    // The canceled first timer would expire now, but must not hide this celebration.
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(screen.getByText("行ってらっしゃい！")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(screen.queryByText("行ってらっしゃい！")).not.toBeInTheDocument();
+  });
+
+  it("dismisses the completion celebration when the overlay is clicked", () => {
+    vi.useFakeTimers();
+    const incomplete: Checklist = {
+      id: "cl-celebration-click",
+      name: "Celebration",
+      items: [{ id: "a", label: "A", checked: false }],
+    };
+    const { rerender } = renderItems({ checklist: incomplete });
+    rerender(
+      <ChecklistItems
+        checklist={{
+          ...incomplete,
+          items: incomplete.items.map((item) => ({ ...item, checked: true })),
+        }}
+        onToggle={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        onReorderItems={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+
+    const overlay = screen.getByRole("status");
+    expect(overlay).toBeInTheDocument();
+    fireEvent.click(overlay);
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("keeps the completion celebration still when reduced motion is preferred", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    const incomplete: Checklist = {
+      id: "cl-reduced-motion",
+      name: "Reduced motion",
+      items: [{ id: "a", label: "A", checked: false }],
+    };
+    const { rerender } = renderItems({ checklist: incomplete });
+
+    rerender(
+      <ChecklistItems
+        checklist={{
+          ...incomplete,
+          items: incomplete.items.map((item) => ({ ...item, checked: true })),
+        }}
+        onToggle={vi.fn()}
+        onAddItem={vi.fn()}
+        onDeleteItem={vi.fn()}
+        onReorderItems={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+
+    const celebration = screen.getByRole("status");
+    expect(celebration).toHaveAttribute("data-test-scale", "1");
+    expect(celebration).toHaveAttribute("data-test-duration", "0");
+  });
+
   it("shows empty state when no items", () => {
     renderItems({ checklist: emptyChecklist });
     expect(screen.getByText("アイテムがまだありません")).toBeInTheDocument();
@@ -153,6 +348,38 @@ describe("ChecklistItems", () => {
     expect(screen.getByText("Laptop")).toBeInTheDocument();
     expect(screen.getByText("Phone")).toBeInTheDocument();
     expect(screen.getByText("Wallet")).toBeInTheDocument();
+  });
+
+  it("shows the bottom drop indicator when dragging below the last item", () => {
+    vi.useFakeTimers();
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function () {
+      const siblings = this.parentElement ? Array.from(this.parentElement.children) : [];
+      const index = siblings.indexOf(this);
+      const top = index * 20;
+      return {
+        x: 0,
+        y: top,
+        top,
+        right: 100,
+        bottom: top + 20,
+        left: 0,
+        width: 100,
+        height: 20,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
+    renderItems();
+
+    fireEvent.pointerDown(screen.getAllByLabelText("並び替え")[0], {
+      button: 0,
+      clientY: 10,
+    });
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+    fireEvent.pointerMove(document, { clientY: 100 });
+
+    expect(document.querySelector("[data-drop-indicator]")).toBeInTheDocument();
   });
 
   it("shows reset button only when items exist", () => {
@@ -204,6 +431,17 @@ describe("ChecklistItems", () => {
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(onAddItem).toHaveBeenCalledWith("Keys");
+  });
+
+  it("does not add a blank item when Enter is pressed", () => {
+    const onAddItem = vi.fn();
+    renderItems({ onAddItem });
+
+    const input = screen.getByPlaceholderText("アイテムを追加...");
+    fireEvent.change(input, { target: { value: "   " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onAddItem).not.toHaveBeenCalled();
   });
 
   it("does not add empty item", () => {

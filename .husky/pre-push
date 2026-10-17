@@ -1,11 +1,11 @@
 #!/bin/sh
 
-echo "Running all tests before push..."
+echo "Running coverage checks before push..."
 
-pnpm test:all
+pnpm run test:coverage:check
 TEST_EXIT_CODE=$?
 if [ $TEST_EXIT_CODE -ne 0 ]; then
-  echo "Unit tests failed with code $TEST_EXIT_CODE"
+  echo "Coverage checks failed with code $TEST_EXIT_CODE"
   exit $TEST_EXIT_CODE
 fi
 
@@ -14,6 +14,13 @@ E2E_EXIT_CODE=$?
 if [ $E2E_EXIT_CODE -ne 0 ]; then
   echo "E2E tests failed with code $E2E_EXIT_CODE"
   exit $E2E_EXIT_CODE
+fi
+
+pnpm run security-check:commercial
+SECURITY_EXIT_CODE=$?
+if [ $SECURITY_EXIT_CODE -ne 0 ]; then
+  echo "Commercial dependency audit failed with code $SECURITY_EXIT_CODE"
+  exit $SECURITY_EXIT_CODE
 fi
 
 echo "All tests passed!"

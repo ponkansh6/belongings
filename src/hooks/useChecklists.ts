@@ -24,6 +24,8 @@ export function useChecklists() {
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       const saved = saveChecklists(checklists);
+      // Successful persistence and reload are covered by Playwright; revisit if save semantics change or that E2E is removed.
+      /* v8 ignore else -- @preserve */
       if (!saved) {
         alert("データの保存に失敗しました。ストレージの容量を確認してください。");
       }
@@ -124,6 +126,8 @@ export function useChecklists() {
   const selectChecklist = useCallback((id: string) => {
     setChecklists((prev) => {
       const idx = prev.findIndex((cl) => cl.id === id);
+      // Already-first and unknown ids need no reordering; revisit if selection ordering or the no-match contract changes.
+      /* v8 ignore if -- @preserve */
       if (idx <= 0) return prev;
       const next = [...prev];
       const [moved] = next.splice(idx, 1);
