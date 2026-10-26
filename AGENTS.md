@@ -19,6 +19,7 @@
 
 - `npx` や `npm` を利用せず、`pnpm exec` や `pnpm` を使用してください。
 - **sudo を要する操作**: 非対話環境のため `sudo` は直接使えない。代わりに `lxqt-sudo` で GUI パスワードポップアップを raise すること。使用例: `lxqt-sudo <command>`. チェーンする場合は一時スクリプトにまとめて渡す。
+- **依存関係の監査・更新に権限昇格が必要な場合**: npm registry への接続などで通常の実行が失敗したときは、対象の `pnpm` コマンドだけを最初から `sandbox_permissions=require_escalated` で実行し、理由と許可範囲を明記すること。昇格は当該コマンドと依存監査・更新の目的に限定し、永続的な sandbox/approval 設定の変更や任意の外部通信は行わない。
 
 ## 委譲に関するルール
 
@@ -30,7 +31,12 @@
   - **UI/UXデザイン・見た目の実装** → `@designer` に委譲
   - **明確な実装作業（複数ファイル跨ぎ含む）** → `@fixer` に委譲
 - 単一ファイルの軽微な編集以外は、まず「この作業を委譲できるagentがいるか？」を検討してから実行に移ること
+- **依頼単位は小さく保つ**: 1 回の委譲は「1 つの明確な成果物」を単位とし、単位を大きくし過ぎないこと。関心事が混在する場合は分割して別 agent に委譲する。
+- **コンテキスト過剰蓄積を防ぐため積極的に新設する**: 既存 agent の context が膨張し続ける場合は同じ役割を抱え込まず、目的特化した新しいサブエージェントを新設して責務を分離する。長大な履歴の再利用より、単位を絞った新規セッションへの再委譲を優先する。
 - `@fixer` への委譲時は、自分が既に持っているコンテキスト（ファイル内容など）をpromptに含めて再読込コストを削減すること
+- **テスト実装とテスト実行は分離する**: テストの実装は `@fixer` に委譲し、テストの実行・検証は Orchestrator 自身が行う。サブエージェントが自分の実装したテストを自ら実行して検証結果を報告する運用は禁止し、Orchestrator が検証ゲート（lint, type-check, test, coverage, spec-refs, smoke-test）を走らせて結果を確認する。
+- **実装内容の一致確認**: サブエージェントの実装完了時は、Orchestrator が実装内容（変更差分・成果物）と委譲時の指示内容が一致していることを確認する。乖離があった場合は、指摘して修正を再委譲してから検証ゲートを通過させる。
+- **`@oracle` は見解の提示のみを行う**: `@oracle` は設計判断・アーキテクチャ評価・レビュー・デバッグ方針などの「見解」を返すことに限定し、自ら手を動かした調査（コマンド実行、コードの実行・修正、ファイル漁り）を行ってはならない。根拠となるコードや実行結果が必要な場合は、Orchestrator が事前に収集して委譲時に渡すか、データ取得そのものは `@explorer` / `@librarian` に委譲する。
 
 ## 実行モードに関する指示
 
@@ -48,3 +54,13 @@
 - OpenSpec 仕様書: `openspec/specs/belongings/spec.md`
 
 <internal_reminder>!IMPORTANT! Scheduler workflow: plan lanes/dependencies → dispatch background specialists → track task IDs → wait for hook-driven completion → reconcile terminal results → verify. Do not poll running jobs, consume running-job output, or advance dependent work. !END!</internal_reminder>
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
